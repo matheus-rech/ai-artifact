@@ -1,25 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
-import { ClaudeAPIRequest } from '../../../types';
+import type { ClaudeAPIRequest } from '../../../types';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const apiKey = process.env['ANTHROPIC_API_KEY'];
-    
+
     if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Anthropic API key not configured' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Anthropic API key not configured' }, { status: 500 });
     }
 
-    const requestData: ClaudeAPIRequest = await request.json();
-    
+    const requestData = (await request.json()) as ClaudeAPIRequest;
+
     if (!requestData.prompt) {
-      return NextResponse.json(
-        { error: 'Missing required field: prompt' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing required field: prompt' }, { status: 400 });
     }
 
     const anthropic = new Anthropic({
@@ -27,30 +22,29 @@ export async function POST(request: NextRequest) {
     });
 
     const timeout = parseInt(process.env['API_TIMEOUT'] || '30000', 10);
-    
+
     const response = await Promise.race([
       anthropic.messages.create({
         model: 'claude-3-sonnet-20240229',
         max_tokens: requestData.maxTokens || 4000,
         temperature: requestData.temperature || 0.3,
-        messages: [{
-          role: 'user',
-          content: requestData.prompt
-        }]
+        messages: [
+          {
+            role: 'user',
+            content: requestData.prompt,
+          },
+        ],
       }),
-      new Promise<never>((_, reject) => 
+      new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Request timeout')), timeout)
-      )
+      ),
     ]);
 
     if (response.content[0]?.type === 'text') {
       return NextResponse.json({ content: response.content[0].text });
     }
-    
-    return NextResponse.json(
-      { error: 'Invalid response format' },
-      { status: 500 }
-    );
+
+    return NextResponse.json({ error: 'Invalid response format' }, { status: 500 });
   } catch (error) {
     console.error('Claude API error:', error);
     return NextResponse.json(
