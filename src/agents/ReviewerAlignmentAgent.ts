@@ -4,27 +4,27 @@ import type {
   ReviewerAlignmentOutput 
 } from './base/AgentTypes';
 import type { AgentConfig, AnalysisItem } from '@/types';
-import { ClaudeAPIService } from '@/services/claudeApiService';
+import { APIClient } from '@/services/apiClient';
 import { FallbackService } from '@/services/fallbackService';
 
 /**
  * Agent responsible for analyzing alignment between changes and reviewer requests
  */
 export class ReviewerAlignmentAgent extends BaseAgent<ReviewerAlignmentInput, ReviewerAlignmentOutput> {
-  private claudeAPI: ClaudeAPIService;
+  private apiClient: APIClient;
   private fallbackService: FallbackService;
 
   constructor(config: AgentConfig) {
     super(config);
-    this.claudeAPI = new ClaudeAPIService();
+    this.apiClient = new APIClient();
     this.fallbackService = new FallbackService();
   }
 
   protected async analyze(input: ReviewerAlignmentInput): Promise<ReviewerAlignmentOutput> {
     this.updateStatus('running', 30, 'Analyzing reviewer alignment...');
 
-    // Use Claude API for intelligent alignment analysis
-    const alignedAnalyses = await this.claudeAPI.analyzeReviewerAlignment(
+    // Use secure API client for intelligent alignment analysis
+    const alignedAnalyses = await this.apiClient.analyzeReviewerAlignment(
       input.diffs, 
       input.reviewerRequests
     );

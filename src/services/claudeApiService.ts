@@ -14,7 +14,6 @@ import { generateId } from '@/utils';
  */
 export class ClaudeAPIService {
   private anthropic: Anthropic | null = null;
-  private fallbackToWindowClaude = false;
 
   constructor() {
     this.initializeAPI();
@@ -25,13 +24,10 @@ export class ClaudeAPIService {
     
     if (apiKey) {
       this.anthropic = new Anthropic({
-        apiKey,
-        dangerouslyAllowBrowser: process.env['NEXT_PUBLIC_ALLOW_BROWSER'] === 'true', // Controlled via environment variable
+        apiKey
       });
-    } else if (typeof window !== 'undefined' && 'claude' in window) {
-      this.fallbackToWindowClaude = true;
     } else {
-      console.warn('No Claude API configuration found. Falling back to heuristic analysis.');
+      console.warn('No Claude API configuration found. This service should only be used server-side.');
     }
   }
 
@@ -66,18 +62,8 @@ export class ClaudeAPIService {
           }
           throw new Error('Invalid response format');
 
-        } else if (this.fallbackToWindowClaude) {
-          // Use window.claude for artifacts
-          const response = await Promise.race([
-            (window as any).claude.complete(request.prompt),
-            new Promise<never>((_, reject) => 
-              setTimeout(() => reject(new Error('Request timeout')), timeout)
-            )
-          ]);
-          
-          return response;
         } else {
-          throw new Error('Claude API not available');
+          throw new Error('Claude API not available - service must be used server-side');
         }
       } catch (error) {
         console.error(`Claude API attempt ${attempt} failed:`, error);
@@ -313,7 +299,7 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
    * Check if Claude API is available
    */
   isAvailable(): boolean {
-    return this.anthropic !== null || this.fallbackToWindowClaude;
+    return this.anthropic !== null;
   }
 
   /**
@@ -321,9 +307,7 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
    */
   getStatus(): { available: boolean; method: string } {
     if (this.anthropic) {
-      return { available: true, method: 'Anthropic SDK' };
-    } else if (this.fallbackToWindowClaude) {
-      return { available: true, method: 'Window Claude' };
+      return { available: true, method: 'Anthropic SDK (Server-side)' };
     } else {
       return { available: false, method: 'None' };
     }

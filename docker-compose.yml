@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  ai-artifact:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/analyze-diffs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
