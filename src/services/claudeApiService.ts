@@ -26,7 +26,7 @@ export class ClaudeAPIService {
     if (apiKey) {
       this.anthropic = new Anthropic({
         apiKey,
-        dangerouslyAllowBrowser: true, // Only for demo purposes
+        dangerouslyAllowBrowser: true, // WARNING: Only for demo/development. In production, use a backend API
       });
     } else if (typeof window !== 'undefined' && 'claude' in window) {
       this.fallbackToWindowClaude = true;

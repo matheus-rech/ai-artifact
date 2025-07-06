@@ -2,6 +2,26 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### 1. Setup Environment Variables
+
+Copy the `.env.example` file to `.env.local` and add your Anthropic API key:
+
+```bash
+cp .env.example .env.local
+```
+
+Then edit `.env.local` and add your API key from [Anthropic Console](https://console.anthropic.com/settings/keys).
+
+### 2. Install Dependencies
+
+```bash
+npm install
+# or
+yarn install
+```
+
+### 3. Run Development Server
+
 First, run the development server:
 
 ```bash
@@ -28,6 +48,14 @@ To learn more about Next.js, take a look at the following resources:
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Production Considerations
+
+⚠️ **Security Note**: The current implementation uses `dangerouslyAllowBrowser: true` in the Anthropic SDK configuration, which exposes your API key in the browser. For production use:
+
+1. Create a backend API endpoint to handle Anthropic API calls
+2. Remove `dangerouslyAllowBrowser: true` from the configuration
+3. Never expose your API key to the client-side code
 
 ## Deploy on Vercel
 
