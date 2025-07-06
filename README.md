@@ -55,14 +55,41 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Production Considerations
 
-⚠️ **Security Note**: The current implementation uses `dangerouslyAllowBrowser: true` in the Anthropic SDK configuration, which exposes your API key in the browser. For production use:
+This application uses a secure backend API endpoint to handle Anthropic API calls. For production deployment:
 
-1. Create a backend API endpoint to handle Anthropic API calls
-2. Remove `dangerouslyAllowBrowser: true` from the configuration
-3. Never expose your API key to the client-side code
+1. Set up your environment variables on your hosting platform (Vercel, etc.)
+2. Ensure `ANTHROPIC_API_KEY` is set as a server-side environment variable
+3. Configure client-side environment variables as needed (`NEXT_PUBLIC_*`)
+4. Deploy using the instructions below
 
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Production Deployment Guide
+
+### Vercel Deployment
+
+1. Fork or clone this repository
+2. Connect your GitHub repository to Vercel
+3. Configure the following environment variables in Vercel:
+   - `ANTHROPIC_API_KEY`: Your Anthropic API key (kept secret on the server)
+   - `API_TIMEOUT`: Timeout for API requests in milliseconds (e.g., 30000)
+   - `MAX_RETRIES`: Number of retries for failed API requests (e.g., 3)
+   - `NEXT_PUBLIC_USE_CLAUDE_API`: Whether to use Claude API (true/false)
+   - `NEXT_PUBLIC_AGENT_MODE`: Agent mode (production/heuristic/mixed)
+   - `NEXT_PUBLIC_API_TIMEOUT`: Client-side timeout setting
+   - `NEXT_PUBLIC_MAX_RETRIES`: Client-side retry setting
+4. Deploy the application
+
+### Docker Deployment
+
+A Dockerfile is not included in this repository. If you need to deploy using Docker:
+
+1. Create a Dockerfile in the root directory
+2. Build and run the Docker container with environment variables
+3. Expose the appropriate port (default: 3000)
+
+For more detailed deployment options, refer to the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying).
