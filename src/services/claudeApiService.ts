@@ -1,11 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { 
-  DiffItem, 
-  AnalysisItem, 
+import type {
+  DiffItem,
+  AnalysisItem,
   ClaudeAPIRequest,
   ManuscriptSection,
   Assessment,
-  Priority
+  Priority,
 } from '@/types';
 import { generateId } from '@/utils';
 
@@ -21,13 +21,15 @@ export class ClaudeAPIService {
 
   private initializeAPI(): void {
     const apiKey = process.env['ANTHROPIC_API_KEY'];
-    
+
     if (apiKey) {
       this.anthropic = new Anthropic({
-        apiKey
+        apiKey,
       });
     } else {
-      console.warn('No Claude API configuration found. This service should only be used server-side.');
+      console.warn(
+        'No Claude API configuration found. This service should only be used server-side.'
+      );
     }
   }
 
@@ -47,33 +49,36 @@ export class ClaudeAPIService {
               model: 'claude-3-sonnet-20240229',
               max_tokens: request.maxTokens || 4000,
               temperature: request.temperature || 0.3,
-              messages: [{
-                role: 'user',
-                content: request.prompt
-              }]
+              messages: [
+                {
+                  role: 'user',
+                  content: request.prompt,
+                },
+              ],
             }),
-            new Promise<never>((_, reject) => 
+            new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error('Request timeout')), timeout)
-            )
+            ),
           ]);
 
           if (response.content[0]?.type === 'text') {
             return response.content[0].text;
           }
           throw new Error('Invalid response format');
-
         } else {
           throw new Error('Claude API not available - service must be used server-side');
         }
       } catch (error) {
         console.error(`Claude API attempt ${attempt} failed:`, error);
-        
+
         if (attempt === maxRetries) {
-          throw new Error(`Claude API failed after ${maxRetries} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          throw new Error(
+            `Claude API failed after ${maxRetries} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
         }
-        
+
         // Exponential backoff
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
       }
     }
 
@@ -89,7 +94,9 @@ export class ClaudeAPIService {
     }
 
     if (diffs.length > 100) {
-      console.warn(`Large number of diffs (${diffs.length}). Consider chunking for better performance.`);
+      console.warn(
+        `Large number of diffs (${diffs.length}). Consider chunking for better performance.`
+      );
     }
 
     const prompt = `You are a senior manuscript editor with expertise in academic writing and journal standards. 
@@ -97,14 +104,18 @@ export class ClaudeAPIService {
 TASK: Analyze the following ${diffs.length} text changes in an academic manuscript revision and provide structured insights.
 
 CHANGES TO ANALYZE:
-${diffs.map((d, i) => `
+${diffs
+  .map(
+    (d, i) => `
 Change ${i + 1} (ID: ${d.id}):
 - Type: ${d.type}
 - Text: "${d.text}"
 - Confidence: ${d.confidence?.toFixed(2) || 'N/A'}
 - Context: ${d.context || 'No context available'}
 - Position: Original ${d.originalPos}, Revised ${d.revisedPos}
-`).join('\n')}
+`
+  )
+  .join('\n')}
 
 ANALYSIS REQUIREMENTS:
 For each change, determine:
@@ -133,17 +144,36 @@ CRITICAL: Return ONLY the JSON array. No markdown, no explanations, no additiona
       const startTime = Date.now();
       const response = await this.sendRequest({ prompt });
       const analysisTime = Date.now() - startTime;
-      
-      console.log(`Claude API analysis completed in ${analysisTime}ms`);
-      
+
+      console.warn(`Claude API analysis completed in ${analysisTime}ms`);
+
       // Robust JSON parsing with validation
-      let analyses: any[];
+      let analyses: Array<{
+        diffId?: string;
+        section?: string;
+        priority?: string;
+        assessment?: string;
+        comment?: string;
+        reviewerPoint?: string;
+        confidence?: number;
+      }>;
       try {
-        const cleanedResponse = response.trim().replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        analyses = JSON.parse(cleanedResponse);
+        const cleanedResponse = response
+          .trim()
+          .replace(/^```json\s*/, '')
+          .replace(/\s*```$/, '');
+        analyses = JSON.parse(cleanedResponse) as Array<{
+          diffId?: string;
+          section?: string;
+          priority?: string;
+          assessment?: string;
+          comment?: string;
+          reviewerPoint?: string;
+          confidence?: number;
+        }>;
       } catch (parseError) {
         console.error('JSON parsing failed:', parseError);
-        console.log('Raw response:', response);
+        console.warn('Raw response:', response);
         throw new Error('Invalid JSON response from Claude API');
       }
 
@@ -153,33 +183,37 @@ CRITICAL: Return ONLY the JSON array. No markdown, no explanations, no additiona
 
       // Validate and enhance each analysis
       return analyses.map((analysis, index) => {
-        const diffItem = diffs.find(d => d.id === analysis.diffId) || diffs[index];
-        
+        const diffItem = diffs.find((d) => d.id === analysis.diffId) || diffs[index];
+
         return {
           analysisId: generateId('claude-seg'),
           diffId: analysis.diffId || diffItem?.id || `unknown-${index}`,
-          section: this.validateSection(analysis.section),
+          section: this.validateSection(analysis.section || 'Body'),
           changeType: diffItem?.type || 'unknown',
           reviewerPoint: analysis.reviewerPoint || 'Analysis completed',
-          assessment: this.validateAssessment(analysis.assessment),
+          assessment: this.validateAssessment(analysis.assessment || 'neutral'),
           comment: analysis.comment || 'Change analyzed',
           relatedText: (diffItem?.text || '').slice(0, 60),
-          priority: this.validatePriority(analysis.priority),
+          priority: this.validatePriority(analysis.priority || 'medium'),
           confidence: Math.min(Math.max(analysis.confidence || 0.5, 0), 1),
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         };
       });
-
     } catch (error) {
       console.error('Claude API segmentation error:', error);
-      throw new Error(`Segmentation analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Segmentation analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
   /**
    * Analyze reviewer alignment with enhanced context understanding
    */
-  async analyzeReviewerAlignment(diffs: DiffItem[], revisionRequests: string): Promise<AnalysisItem[]> {
+  async analyzeReviewerAlignment(
+    diffs: DiffItem[],
+    revisionRequests: string
+  ): Promise<AnalysisItem[]> {
     if (!diffs || diffs.length === 0) {
       return [];
     }
@@ -195,13 +229,17 @@ REVIEWER REVISION REQUESTS:
 "${revisionRequests.trim()}"
 
 AUTHOR CHANGES (${diffs.length} total):
-${diffs.map((d, i) => `
+${diffs
+  .map(
+    (d, i) => `
 Change ${i + 1} (ID: ${d.id}):
 - Type: ${d.type}
 - Text: "${d.text}"
 - Confidence: ${d.confidence?.toFixed(2) || 'N/A'}
 - Context: ${d.context || 'Limited context'}
-`).join('\n')}
+`
+  )
+  .join('\n')}
 
 ANALYSIS TASK:
 1. Identify which changes directly address the reviewer requests
@@ -232,13 +270,34 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
       const startTime = Date.now();
       const response = await this.sendRequest({ prompt });
       const analysisTime = Date.now() - startTime;
-      
-      console.log(`Claude reviewer alignment analysis completed in ${analysisTime}ms`);
-      
-      let analyses: any[];
+
+      console.warn(`Claude reviewer alignment analysis completed in ${analysisTime}ms`);
+
+      let analyses: Array<{
+        diffId?: string;
+        alignmentScore?: number;
+        section?: string;
+        priority?: string;
+        assessment?: string;
+        comment?: string;
+        reviewerPoint?: string;
+        confidence?: number;
+      }>;
       try {
-        const cleanedResponse = response.trim().replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        analyses = JSON.parse(cleanedResponse);
+        const cleanedResponse = response
+          .trim()
+          .replace(/^```json\s*/, '')
+          .replace(/\s*```$/, '');
+        analyses = JSON.parse(cleanedResponse) as Array<{
+          diffId?: string;
+          alignmentScore?: number;
+          section?: string;
+          priority?: string;
+          assessment?: string;
+          comment?: string;
+          reviewerPoint?: string;
+          confidence?: number;
+        }>;
       } catch (parseError) {
         console.error('JSON parsing failed for reviewer alignment:', parseError);
         throw new Error('Invalid JSON response from Claude API');
@@ -249,28 +308,29 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
       }
 
       return analyses
-        .filter(analysis => analysis.alignmentScore > 25) // Filter low-relevance items
+        .filter((analysis) => (analysis.alignmentScore || 0) > 25) // Filter low-relevance items
         .map((analysis, index) => {
-          const diffItem = diffs.find(d => d.id === analysis.diffId);
-          
+          const diffItem = diffs.find((d) => d.id === analysis.diffId);
+
           return {
             analysisId: generateId('claude-rev'),
             diffId: analysis.diffId || `rev-${index}`,
-            section: this.validateSection(analysis.section),
+            section: this.validateSection(analysis.section || 'Body'),
             changeType: diffItem?.type || 'unknown',
             reviewerPoint: analysis.reviewerPoint || 'Addresses reviewer concerns',
-            assessment: this.validateAssessment(analysis.assessment),
+            assessment: this.validateAssessment(analysis.assessment || 'neutral'),
             comment: analysis.comment || 'Responds to reviewer feedback',
             relatedText: (diffItem?.text || '').slice(0, 60),
-            priority: this.validatePriority(analysis.priority),
+            priority: this.validatePriority(analysis.priority || 'medium'),
             confidence: Math.min(Math.max(analysis.confidence || 0.7, 0), 1),
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           };
         });
-
     } catch (error) {
       console.error('Claude API reviewer alignment error:', error);
-      throw new Error(`Reviewer alignment analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Reviewer alignment analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -279,20 +339,31 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
    */
   private validateSection(section: string): ManuscriptSection {
     const validSections: ManuscriptSection[] = [
-      'Abstract', 'Introduction', 'Literature Review', 'Methods', 'Methodology',
-      'Results', 'Discussion', 'Conclusion', 'References', 'Appendix', 'Body'
+      'Abstract',
+      'Introduction',
+      'Literature Review',
+      'Methods',
+      'Methodology',
+      'Results',
+      'Discussion',
+      'Conclusion',
+      'References',
+      'Appendix',
+      'Body',
     ];
-    return validSections.includes(section as ManuscriptSection) ? section as ManuscriptSection : 'Body';
+    return validSections.includes(section as ManuscriptSection)
+      ? (section as ManuscriptSection)
+      : 'Body';
   }
 
   private validateAssessment(assessment: string): Assessment {
     const valid: Assessment[] = ['positive', 'negative', 'neutral'];
-    return valid.includes(assessment as Assessment) ? assessment as Assessment : 'neutral';
+    return valid.includes(assessment as Assessment) ? (assessment as Assessment) : 'neutral';
   }
 
   private validatePriority(priority: string): Priority {
     const valid: Priority[] = ['high', 'medium', 'low'];
-    return valid.includes(priority as Priority) ? priority as Priority : 'medium';
+    return valid.includes(priority as Priority) ? (priority as Priority) : 'medium';
   }
 
   /**

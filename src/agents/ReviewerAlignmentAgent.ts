@@ -1,8 +1,5 @@
 import { BaseAgent } from './base/BaseAgent';
-import type { 
-  ReviewerAlignmentInput, 
-  ReviewerAlignmentOutput 
-} from './base/AgentTypes';
+import type { ReviewerAlignmentInput, ReviewerAlignmentOutput } from './base/AgentTypes';
 import type { AgentConfig, AnalysisItem } from '@/types';
 import { APIClient } from '@/services/apiClient';
 import { FallbackService } from '@/services/fallbackService';
@@ -10,7 +7,10 @@ import { FallbackService } from '@/services/fallbackService';
 /**
  * Agent responsible for analyzing alignment between changes and reviewer requests
  */
-export class ReviewerAlignmentAgent extends BaseAgent<ReviewerAlignmentInput, ReviewerAlignmentOutput> {
+export class ReviewerAlignmentAgent extends BaseAgent<
+  ReviewerAlignmentInput,
+  ReviewerAlignmentOutput
+> {
   private apiClient: APIClient;
   private fallbackService: FallbackService;
 
@@ -25,16 +25,20 @@ export class ReviewerAlignmentAgent extends BaseAgent<ReviewerAlignmentInput, Re
 
     // Use secure API client for intelligent alignment analysis
     const alignedAnalyses = await this.apiClient.analyzeReviewerAlignment(
-      input.diffs, 
+      input.diffs,
       input.reviewerRequests
     );
-    
+
     this.updateStatus('running', 60, 'Creating alignment summary...');
-    const summary = this.createAlignmentSummary(input.diffs, alignedAnalyses, input.reviewerRequests);
+    const summary = this.createAlignmentSummary(
+      input.diffs,
+      alignedAnalyses,
+      input.reviewerRequests
+    );
 
     return {
       alignedAnalyses,
-      summary
+      summary,
     };
   }
 
@@ -42,21 +46,26 @@ export class ReviewerAlignmentAgent extends BaseAgent<ReviewerAlignmentInput, Re
     this.updateStatus('running', 30, 'Using heuristic alignment analysis...');
 
     // Use fallback heuristic analysis
-    const alignedAnalyses = this.fallbackService.analyzeReviewerAlignment(
-      input.diffs, 
+    const alignedAnalyses = await Promise.resolve(
+      this.fallbackService.analyzeReviewerAlignment(input.diffs, input.reviewerRequests)
+    );
+
+    this.updateStatus('running', 60, 'Creating alignment summary...');
+    const summary = this.createAlignmentSummary(
+      input.diffs,
+      alignedAnalyses,
       input.reviewerRequests
     );
-    
-    this.updateStatus('running', 60, 'Creating alignment summary...');
-    const summary = this.createAlignmentSummary(input.diffs, alignedAnalyses, input.reviewerRequests);
 
     return {
       alignedAnalyses,
-      summary
+      summary,
     };
   }
 
   protected async validateInput(input: ReviewerAlignmentInput): Promise<void> {
+    await Promise.resolve(); // Make this properly async
+
     if (!input) {
       throw new Error('Input is required');
     }
@@ -86,6 +95,8 @@ export class ReviewerAlignmentAgent extends BaseAgent<ReviewerAlignmentInput, Re
   }
 
   protected async validateOutput(output: ReviewerAlignmentOutput): Promise<void> {
+    await Promise.resolve(); // Make this properly async
+
     if (!output) {
       throw new Error('Output is required');
     }
@@ -100,9 +111,11 @@ export class ReviewerAlignmentAgent extends BaseAgent<ReviewerAlignmentInput, Re
 
     // Validate summary structure
     const { summary } = output;
-    if (typeof summary.totalChanges !== 'number' || 
-        typeof summary.alignedChanges !== 'number' ||
-        typeof summary.alignmentPercentage !== 'number') {
+    if (
+      typeof summary.totalChanges !== 'number' ||
+      typeof summary.alignedChanges !== 'number' ||
+      typeof summary.alignmentPercentage !== 'number'
+    ) {
       throw new Error('Invalid summary structure');
     }
 
@@ -122,12 +135,12 @@ export class ReviewerAlignmentAgent extends BaseAgent<ReviewerAlignmentInput, Re
     if (result.alignedAnalyses.length === 0) return 0;
 
     // Base confidence on alignment percentage and individual confidences
-    const avgItemConfidence = result.alignedAnalyses.reduce(
-      (sum, analysis) => sum + analysis.confidence, 0
-    ) / result.alignedAnalyses.length;
+    const avgItemConfidence =
+      result.alignedAnalyses.reduce((sum, analysis) => sum + analysis.confidence, 0) /
+      result.alignedAnalyses.length;
 
-    const alignmentBonus = result.summary.alignmentPercentage / 100 * 0.3;
-    
+    const alignmentBonus = (result.summary.alignmentPercentage / 100) * 0.3;
+
     return Math.min(avgItemConfidence + alignmentBonus, 1.0);
   }
 
@@ -139,8 +152,8 @@ export class ReviewerAlignmentAgent extends BaseAgent<ReviewerAlignmentInput, Re
         alignedChanges: 0,
         alignmentPercentage: 0,
         topRequests: [],
-        averageAlignmentScore: 0
-      }
+        averageAlignmentScore: 0,
+      },
     };
   }
 
@@ -154,31 +167,30 @@ export class ReviewerAlignmentAgent extends BaseAgent<ReviewerAlignmentInput, Re
   ): ReviewerAlignmentOutput['summary'] {
     const totalChanges = diffs.length;
     const alignedChanges = alignedAnalyses.length;
-    const alignmentPercentage = totalChanges > 0 
-      ? Math.round((alignedChanges / totalChanges) * 100) 
-      : 0;
+    const alignmentPercentage =
+      totalChanges > 0 ? Math.round((alignedChanges / totalChanges) * 100) : 0;
 
     // Extract top requests/topics from reviewer feedback
     const topRequests = this.extractTopRequests(reviewerRequests);
 
     // Calculate average alignment score (if available in analysis metadata)
-    const averageAlignmentScore = alignedAnalyses.length > 0
-      ? alignedAnalyses.reduce((sum, analysis) => {
-          // Estimate alignment score based on confidence and priority
-          const score = analysis.confidence * (
-            analysis.priority === 'high' ? 100 : 
-            analysis.priority === 'medium' ? 70 : 40
-          );
-          return sum + score;
-        }, 0) / alignedAnalyses.length
-      : 0;
+    const averageAlignmentScore =
+      alignedAnalyses.length > 0
+        ? alignedAnalyses.reduce((sum, analysis) => {
+            // Estimate alignment score based on confidence and priority
+            const score =
+              analysis.confidence *
+              (analysis.priority === 'high' ? 100 : analysis.priority === 'medium' ? 70 : 40);
+            return sum + score;
+          }, 0) / alignedAnalyses.length
+        : 0;
 
     return {
       totalChanges,
       alignedChanges,
       alignmentPercentage,
       topRequests,
-      averageAlignmentScore: Math.round(averageAlignmentScore)
+      averageAlignmentScore: Math.round(averageAlignmentScore),
     };
   }
 
@@ -187,7 +199,7 @@ export class ReviewerAlignmentAgent extends BaseAgent<ReviewerAlignmentInput, Re
    */
   private extractTopRequests(reviewerRequests: string): string[] {
     const requests = reviewerRequests.toLowerCase();
-    
+
     // Common academic manuscript topics/requests
     const topicPatterns = [
       { pattern: /method(ology|s)?/g, topic: 'Methodology' },
@@ -203,7 +215,7 @@ export class ReviewerAlignmentAgent extends BaseAgent<ReviewerAlignmentInput, Re
       { pattern: /reference(s)?/g, topic: 'References' },
       { pattern: /clarity|clear/g, topic: 'Clarity' },
       { pattern: /explanation|explain/g, topic: 'Explanations' },
-      { pattern: /limitation(s)?/g, topic: 'Limitations' }
+      { pattern: /limitation(s)?/g, topic: 'Limitations' },
     ];
 
     const foundTopics = topicPatterns
@@ -222,19 +234,19 @@ export class ReviewerAlignmentAgent extends BaseAgent<ReviewerAlignmentInput, Re
     priorityAlignment: Array<{ priority: string; count: number; percentage: number }>;
     alignmentQuality: {
       excellent: number; // >80% confidence
-      good: number;      // 60-80% confidence
-      fair: number;      // 40-60% confidence
-      poor: number;      // <40% confidence
+      good: number; // 60-80% confidence
+      fair: number; // 40-60% confidence
+      poor: number; // <40% confidence
     };
     recommendations: string[];
   } {
     const { alignedAnalyses, summary } = output;
-    
+
     // Section alignment breakdown
     const sectionCounts: Record<string, number> = {};
     const priorityCounts: Record<string, number> = {};
-    
-    alignedAnalyses.forEach(analysis => {
+
+    alignedAnalyses.forEach((analysis) => {
       sectionCounts[analysis.section] = (sectionCounts[analysis.section] || 0) + 1;
       priorityCounts[analysis.priority] = (priorityCounts[analysis.priority] || 0) + 1;
     });
@@ -243,7 +255,7 @@ export class ReviewerAlignmentAgent extends BaseAgent<ReviewerAlignmentInput, Re
       .map(([section, count]) => ({
         section,
         count,
-        percentage: Math.round((count / alignedAnalyses.length) * 100)
+        percentage: Math.round((count / alignedAnalyses.length) * 100),
       }))
       .sort((a, b) => b.count - a.count);
 
@@ -251,16 +263,16 @@ export class ReviewerAlignmentAgent extends BaseAgent<ReviewerAlignmentInput, Re
       .map(([priority, count]) => ({
         priority,
         count,
-        percentage: Math.round((count / alignedAnalyses.length) * 100)
+        percentage: Math.round((count / alignedAnalyses.length) * 100),
       }))
       .sort((a, b) => b.count - a.count);
 
     // Alignment quality distribution
     const alignmentQuality = {
-      excellent: alignedAnalyses.filter(a => a.confidence > 0.8).length,
-      good: alignedAnalyses.filter(a => a.confidence > 0.6 && a.confidence <= 0.8).length,
-      fair: alignedAnalyses.filter(a => a.confidence > 0.4 && a.confidence <= 0.6).length,
-      poor: alignedAnalyses.filter(a => a.confidence <= 0.4).length
+      excellent: alignedAnalyses.filter((a) => a.confidence > 0.8).length,
+      good: alignedAnalyses.filter((a) => a.confidence > 0.6 && a.confidence <= 0.8).length,
+      fair: alignedAnalyses.filter((a) => a.confidence > 0.4 && a.confidence <= 0.6).length,
+      poor: alignedAnalyses.filter((a) => a.confidence <= 0.4).length,
     };
 
     // Generate recommendations
@@ -270,7 +282,7 @@ export class ReviewerAlignmentAgent extends BaseAgent<ReviewerAlignmentInput, Re
       sectionAlignment,
       priorityAlignment,
       alignmentQuality,
-      recommendations
+      recommendations,
     };
   }
 
