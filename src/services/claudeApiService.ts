@@ -1,3 +1,8 @@
+// Shim for missing Node process typings in some environments
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const process: any;
+
+// Shim for environments where Node types are not automatically included.
 import Anthropic from '@anthropic-ai/sdk';
 import type { 
   DiffItem, 
