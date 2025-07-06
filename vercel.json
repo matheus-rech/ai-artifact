@@ -1,0 +1,10 @@
+{
+  "env": {
+    "ANTHROPIC_API_KEY": "@anthropic-api-key"
+  },
+  "build": {
+    "env": {
+      "ANTHROPIC_API_KEY": "@anthropic-api-key"
+    }
+  }
+}

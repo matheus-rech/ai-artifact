@@ -4,19 +4,19 @@ import type {
   ReviewerAlignmentOutput 
 } from './base/AgentTypes';
 import type { AgentConfig, AnalysisItem } from '@/types';
-import { ClaudeAPIService } from '@/services/claudeApiService';
+import { SecureClaudeAPIService } from '@/services/secureClaudeApiService';
 import { FallbackService } from '@/services/fallbackService';
 
 /**
  * Agent responsible for analyzing alignment between changes and reviewer requests
  */
 export class ReviewerAlignmentAgent extends BaseAgent<ReviewerAlignmentInput, ReviewerAlignmentOutput> {
-  private claudeAPI: ClaudeAPIService;
+  private claudeAPI: SecureClaudeAPIService;
   private fallbackService: FallbackService;
 
   constructor(config: AgentConfig) {
     super(config);
-    this.claudeAPI = new ClaudeAPIService();
+    this.claudeAPI = new SecureClaudeAPIService();
     this.fallbackService = new FallbackService();
   }
 

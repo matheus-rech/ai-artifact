@@ -53,13 +53,55 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Production Considerations
+## Production Setup
 
-⚠️ **Security Note**: The current implementation uses `dangerouslyAllowBrowser: true` in the Anthropic SDK configuration, which exposes your API key in the browser. For production use:
+✅ **Security**: This application now includes secure backend API endpoints that handle Anthropic API calls server-side, eliminating client-side API key exposure.
 
-1. Create a backend API endpoint to handle Anthropic API calls
-2. Remove `dangerouslyAllowBrowser: true` from the configuration
-3. Never expose your API key to the client-side code
+### Environment Configuration
+
+1. **Copy environment template:**
+   ```bash
+   cp .env.example .env.local
+   ```
+
+2. **Add your Anthropic API key to `.env.local`:**
+   ```bash
+   ANTHROPIC_API_KEY=your_anthropic_api_key_here
+   NEXT_PUBLIC_ALLOW_BROWSER=false
+   NEXT_PUBLIC_MAX_RETRIES=3
+   NEXT_PUBLIC_API_TIMEOUT=30000
+   ```
+
+### Deployment Options
+
+#### Vercel Deployment
+1. Connect your repository to Vercel
+2. Add environment variables in Vercel dashboard:
+   - `ANTHROPIC_API_KEY`: Your Anthropic API key
+3. Deploy automatically on push to main branch
+
+#### Docker Deployment
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+
+# Or build and run manually
+docker build -t ai-artifact .
+docker run -p 3000:3000 --env-file .env.local ai-artifact
+```
+
+#### Manual Production Build
+```bash
+npm run build
+npm start
+```
+
+### Security Features
+- ✅ Server-side API key handling
+- ✅ No client-side API key exposure
+- ✅ Secure backend endpoints (`/api/claude/*`)
+- ✅ Environment-based configuration
+- ✅ Production-ready error handling
 
 ## Deploy on Vercel
 

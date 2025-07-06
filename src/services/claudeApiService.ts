@@ -26,7 +26,7 @@ export class ClaudeAPIService {
     if (apiKey) {
       this.anthropic = new Anthropic({
         apiKey,
-        dangerouslyAllowBrowser: process.env['NEXT_PUBLIC_ALLOW_BROWSER'] === 'true', // Controlled via environment variable
+        dangerouslyAllowBrowser: false, // Disabled for production security
       });
     } else if (typeof window !== 'undefined' && 'claude' in window) {
       this.fallbackToWindowClaude = true;
