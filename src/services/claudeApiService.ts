@@ -22,13 +22,18 @@ export class ClaudeAPIService {
 
   private initializeAPI(): void {
     const apiKey = process.env['ANTHROPIC_API_KEY'];
-    
-    if (apiKey) {
+
+    // Never bundle the Claude API key in client-side code. Only instantiate the SDK
+    // when running on the server.
+    const isBrowser = typeof window !== 'undefined';
+
+    if (apiKey && !isBrowser) {
+      // Server-side execution – safe to create the SDK client.
       this.anthropic = new Anthropic({
         apiKey,
-        dangerouslyAllowBrowser: true, // Only for demo purposes
       });
-    } else if (typeof window !== 'undefined' && 'claude' in window) {
+    } else if (isBrowser && 'claude' in window) {
+      // Client-side fallback (e.g. window.claude injected for demos).
       this.fallbackToWindowClaude = true;
     } else {
       console.warn('No Claude API configuration found. Falling back to heuristic analysis.');
@@ -39,8 +44,13 @@ export class ClaudeAPIService {
    * Send a request to Claude API with retry logic
    */
   private async sendRequest(request: ClaudeAPIRequest): Promise<string> {
-    const maxRetries = parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10);
-    const timeout = parseInt(process.env['NEXT_PUBLIC_API_TIMEOUT'] || '30000', 10);
+    // Robust parsing of numeric env vars – fall back to sane defaults when the
+    // variable is missing **or** not a valid positive number.
+    const envRetries = Number(process.env['NEXT_PUBLIC_MAX_RETRIES']);
+    const envTimeout = Number(process.env['NEXT_PUBLIC_API_TIMEOUT']);
+
+    const maxRetries = Number.isFinite(envRetries) && envRetries > 0 ? envRetries : 3;
+    const timeout = Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : 30_000;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {

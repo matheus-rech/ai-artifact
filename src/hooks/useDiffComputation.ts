@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { DiffEngine } from '@/services/diffEngine';
 import type { DiffItem, ValidationResult, DiffGranularity } from '@/types';
 
@@ -29,6 +29,12 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
   // Memoized diff engine instance
   const diffEngine = useMemo(() => new DiffEngine(), []);
 
+  // Ref to track whether a diff computation is currently running.
+  // Using a ref avoids issues with stale closures when `computeDiffs` is invoked
+  // multiple times in quick succession (e.g. double-clicks) before React state
+  // updates have propagated.
+  const isComputingRef = useRef(false);
+
   /**
    * Compute diffs between original and revised text
    */
@@ -37,14 +43,20 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
     revised: string,
     granularity: DiffGranularity
   ): Promise<DiffItem[]> => {
-    if (state.isComputing) {
+
+    // Guard against parallel execution using the ref instead of state.
+    if (isComputingRef.current) {
       throw new Error('Diff computation already in progress');
     }
 
-    setState(prev => ({ 
-      ...prev, 
-      isComputing: true, 
-      error: null 
+    // Mark as running _before_ any asynchronous work starts to avoid race conditions
+    // where two calls could pass the check above before `setState` completes.
+    isComputingRef.current = true;
+
+    setState(prev => ({
+      ...prev,
+      isComputing: true,
+      error: null
     }));
 
     try {
@@ -80,6 +92,8 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
         error: null
       }));
 
+      isComputingRef.current = false;
+
       console.log(`Diff computation completed: ${diffs.length} changes in ${computationTime.toFixed(2)}ms`);
       
       return diffs;
@@ -94,9 +108,11 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
         error: errorMessage
       }));
 
+      isComputingRef.current = false;
+
       throw error;
     }
-  }, [state.isComputing, diffEngine]);
+  }, [diffEngine]);
 
   /**
    * Reset diff computation state
@@ -108,6 +124,9 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
       computationTime: 0,
       error: null
     });
+
+    // Ensure the ref flag is also reset so that new computations can be started.
+    isComputingRef.current = false;
   }, []);
 
   /**
