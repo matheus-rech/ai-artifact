@@ -1,14 +1,17 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { ClaudeAPIService } from '@/services/claudeApiService';
+import type { DiffItem } from '@/types';
+
+interface AnalyzeRequestBody {
+  diffs: DiffItem[];
+  revisionRequests?: string;
+  analysisType: string;
+}
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body = await request.json() as {
-      diffs: unknown;
-      revisionRequests?: string;
-      analysisType: string;
-    };
+    const body = await request.json() as AnalyzeRequestBody;
     const { diffs, revisionRequests, analysisType } = body;
 
     if (!diffs || !Array.isArray(diffs)) {
@@ -81,7 +84,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-export async function GET(): Promise<NextResponse> {
+export function GET(): NextResponse {
   const claudeService = new ClaudeAPIService();
   const status = claudeService.getStatus();
   

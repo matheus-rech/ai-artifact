@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ClaudeAPIService } from '@/services/claudeApiService';
 
-export async function GET(): Promise<NextResponse> {
+export function GET(): NextResponse {
   try {
     const claudeService = new ClaudeAPIService();
     const claudeStatus = claudeService.getStatus();
