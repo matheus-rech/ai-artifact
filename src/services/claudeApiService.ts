@@ -23,10 +23,9 @@ export class ClaudeAPIService {
   private initializeAPI(): void {
     const apiKey = process.env['ANTHROPIC_API_KEY'];
     
-    if (apiKey) {
+    if (apiKey && typeof window === 'undefined') {
       this.anthropic = new Anthropic({
         apiKey,
-        dangerouslyAllowBrowser: process.env['NEXT_PUBLIC_ALLOW_BROWSER'] === 'true', // Controlled via environment variable
       });
     } else if (typeof window !== 'undefined' && 'claude' in window) {
       this.fallbackToWindowClaude = true;

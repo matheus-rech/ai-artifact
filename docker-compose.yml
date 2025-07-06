@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - NEXT_PUBLIC_USE_CLAUDE_API=true
+      - NEXT_PUBLIC_AGENT_MODE=production
+      - NEXT_PUBLIC_API_TIMEOUT=30000
+      - NEXT_PUBLIC_MAX_RETRIES=3
+      - NEXT_PUBLIC_ALLOW_BROWSER=false
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run build && npm start

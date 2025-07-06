@@ -4,33 +4,35 @@ import type {
   DiffSegmentationOutput 
 } from './base/AgentTypes';
 import type { AgentConfig, AnalysisItem } from '@/types';
-import { ClaudeAPIService } from '@/services/claudeApiService';
+import { apiClient } from '@/services/apiClient';
 import { FallbackService } from '@/services/fallbackService';
 
 /**
  * Agent responsible for analyzing and categorizing manuscript diffs by section
  */
 export class DiffSegmentationAgent extends BaseAgent<DiffSegmentationInput, DiffSegmentationOutput> {
-  private claudeAPI: ClaudeAPIService;
   private fallbackService: FallbackService;
 
   constructor(config: AgentConfig) {
     super(config);
-    this.claudeAPI = new ClaudeAPIService();
     this.fallbackService = new FallbackService();
   }
 
   protected async analyze(input: DiffSegmentationInput): Promise<DiffSegmentationOutput> {
     this.updateStatus('running', 30, 'Analyzing diff segments...');
 
-    // Use Claude API for intelligent analysis
-    const analyses = await this.claudeAPI.analyzeDiffSegmentation(input.diffs);
+    // Use secure API endpoint for intelligent analysis
+    const result = await apiClient.analyzeSegmentation(input.diffs);
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Segmentation analysis failed');
+    }
     
     this.updateStatus('running', 60, 'Creating summary...');
-    const summary = this.createSummary(analyses);
+    const summary = this.createSummary(result.data.analyses);
 
     return {
-      analyses,
+      analyses: result.data.analyses,
       summary
     };
   }
