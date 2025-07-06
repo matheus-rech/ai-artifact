@@ -105,7 +105,15 @@ Analyzes alignment between manuscript changes and reviewer requests.
 **Request Body:**
 ```json
 {
-  "diffs": [...],
+  "diffs": [
+    {
+      "file": "example.py",
+      "line": 10,
+      "old": "print('Hello')",
+      "new": "print('Hello, world!')"
+    }
+    // ... more diff objects
+  ],
   "reviewerRequests": "Detailed reviewer feedback and requests"
 }
 ```
