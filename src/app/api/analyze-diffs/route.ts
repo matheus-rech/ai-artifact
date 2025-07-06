@@ -5,7 +5,7 @@ import type { DiffItem } from '@/types';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body = await request.json() as { diffs?: unknown };
+    const body = (await request.json()) as { diffs?: unknown };
     const { diffs } = body;
 
     if (!diffs || !Array.isArray(diffs)) {
@@ -27,16 +27,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({
       success: true,
-      data: analyses
+      data: analyses,
     });
-
   } catch (error) {
     console.error('Diff analysis API error:', error);
-    
+
     return NextResponse.json(
-      { 
+      {
         error: 'Analysis failed',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     );

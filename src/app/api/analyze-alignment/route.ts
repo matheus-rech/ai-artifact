@@ -5,7 +5,7 @@ import type { DiffItem } from '@/types';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body = await request.json() as { diffs?: unknown; reviewerRequests?: unknown };
+    const body = (await request.json()) as { diffs?: unknown; reviewerRequests?: unknown };
     const { diffs, reviewerRequests } = body;
 
     if (!diffs || !Array.isArray(diffs)) {
@@ -30,20 +30,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const claudeService = new ClaudeAPIService();
-    const alignedAnalyses = await claudeService.analyzeReviewerAlignment(diffs as DiffItem[], reviewerRequests);
+    const alignedAnalyses = await claudeService.analyzeReviewerAlignment(
+      diffs as DiffItem[],
+      reviewerRequests
+    );
 
     return NextResponse.json({
       success: true,
-      data: alignedAnalyses
+      data: alignedAnalyses,
     });
-
   } catch (error) {
     console.error('Reviewer alignment API error:', error);
-    
+
     return NextResponse.json(
-      { 
+      {
         error: 'Alignment analysis failed',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     );
