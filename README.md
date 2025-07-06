@@ -18,6 +18,10 @@ Then edit `.env.local` and add your API key from [Anthropic Console](https://con
 npm install
 # or
 yarn install
+# or
+pnpm install
+# or
+bun install
 ```
 
 ### 3. Run Development Server
