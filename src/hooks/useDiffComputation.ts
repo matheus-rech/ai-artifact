@@ -93,7 +93,7 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
 
       isComputingRef.current = false;
 
-      console.warn(`Diff computation completed: ${diffs.length} changes in ${computationTime.toFixed(2)}ms`);
+      console.log(`Diff computation completed: ${diffs.length} changes in ${computationTime.toFixed(2)}ms`);
       
       return diffs;
 
