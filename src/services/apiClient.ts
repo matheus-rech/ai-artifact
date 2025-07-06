@@ -26,7 +26,7 @@ export class APIClient {
 
   async analyzeSegmentation(diffs: DiffItem[]): Promise<AgentResult<{ analyses: AnalysisItem[] }>> {
     const startTime = Date.now();
-    
+
     try {
       const response = await fetch(`${this.baseUrl}/api/analyze`, {
         method: 'POST',
@@ -35,7 +35,7 @@ export class APIClient {
         },
         body: JSON.stringify({
           diffs,
-          analysisType: 'segmentation'
+          analysisType: 'segmentation',
         }),
       });
 
@@ -51,9 +51,8 @@ export class APIClient {
         data: { analyses: result.data.analyses },
         executionTime,
         usedFallback: false,
-        confidence: 0.9
+        confidence: 0.9,
       };
-
     } catch (error) {
       console.error('API segmentation analysis error:', error);
       return {
@@ -62,14 +61,17 @@ export class APIClient {
         error: error instanceof Error ? error.message : 'Unknown API error',
         executionTime: Date.now() - startTime,
         usedFallback: false,
-        confidence: 0
+        confidence: 0,
       };
     }
   }
 
-  async analyzeReviewerAlignment(diffs: DiffItem[], revisionRequests: string): Promise<AgentResult<{ analyses: AnalysisItem[] }>> {
+  async analyzeReviewerAlignment(
+    diffs: DiffItem[],
+    revisionRequests: string
+  ): Promise<AgentResult<{ analyses: AnalysisItem[] }>> {
     const startTime = Date.now();
-    
+
     try {
       const response = await fetch(`${this.baseUrl}/api/analyze`, {
         method: 'POST',
@@ -79,7 +81,7 @@ export class APIClient {
         body: JSON.stringify({
           diffs,
           revisionRequests,
-          analysisType: 'alignment'
+          analysisType: 'alignment',
         }),
       });
 
@@ -95,9 +97,8 @@ export class APIClient {
         data: { analyses: result.data.analyses },
         executionTime,
         usedFallback: false,
-        confidence: 0.9
+        confidence: 0.9,
       };
-
     } catch (error) {
       console.error('API reviewer alignment analysis error:', error);
       return {
@@ -106,12 +107,15 @@ export class APIClient {
         error: error instanceof Error ? error.message : 'Unknown API error',
         executionTime: Date.now() - startTime,
         usedFallback: false,
-        confidence: 0
+        confidence: 0,
       };
     }
   }
 
-  async checkHealth(): Promise<{ status: string; claudeAPI: { available: boolean; method: string } }> {
+  async checkHealth(): Promise<{
+    status: string;
+    claudeAPI: { available: boolean; method: string };
+  }> {
     try {
       const response = await fetch(`${this.baseUrl}/api/health`);
       return await response.json();

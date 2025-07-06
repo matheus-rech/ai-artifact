@@ -71,7 +71,7 @@ export interface PriorityAssessmentOutput {
 }
 
 // Agent factory type
-export type AgentType = 
+export type AgentType =
   | 'diff-segmentation'
   | 'reviewer-alignment'
   | 'section-inference'
@@ -84,29 +84,29 @@ export const DEFAULT_AGENT_CONFIGS: Record<AgentType, AgentConfig> = {
     enabled: true,
     timeout: 30000,
     maxRetries: 3,
-    fallbackEnabled: true
+    fallbackEnabled: true,
   },
   'reviewer-alignment': {
     name: 'Reviewer Alignment Agent',
     enabled: true,
     timeout: 30000,
     maxRetries: 3,
-    fallbackEnabled: true
+    fallbackEnabled: true,
   },
   'section-inference': {
     name: 'Section Inference Agent',
     enabled: true,
     timeout: 15000,
     maxRetries: 2,
-    fallbackEnabled: true
+    fallbackEnabled: true,
   },
   'priority-assessment': {
     name: 'Priority Assessment Agent',
     enabled: true,
     timeout: 15000,
     maxRetries: 2,
-    fallbackEnabled: true
-  }
+    fallbackEnabled: true,
+  },
 };
 
 // Agent execution order for orchestration
@@ -114,7 +114,7 @@ export const AGENT_EXECUTION_ORDER: AgentType[] = [
   'diff-segmentation',
   'section-inference',
   'priority-assessment',
-  'reviewer-alignment'
+  'reviewer-alignment',
 ];
 
 // Agent dependencies (which agents need output from others)
@@ -122,5 +122,5 @@ export const AGENT_DEPENDENCIES: Record<AgentType, AgentType[]> = {
   'diff-segmentation': [],
   'section-inference': ['diff-segmentation'],
   'priority-assessment': ['diff-segmentation', 'section-inference'],
-  'reviewer-alignment': ['diff-segmentation']
+  'reviewer-alignment': ['diff-segmentation'],
 };
