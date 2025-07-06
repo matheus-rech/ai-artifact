@@ -1,28 +1,16 @@
 import { DiffSegmentationAgent } from './DiffSegmentationAgent';
 import { ReviewerAlignmentAgent } from './ReviewerAlignmentAgent';
-import type { 
-  AgentConfig, 
-  DiffItem, 
-  OverallAnalysis,
-  AgentStatus,
-  AgentResult
-} from '@/types';
-import {
-  DEFAULT_AGENT_CONFIGS
-} from './base/AgentTypes';
-import type {
-  AgentType,
-  DiffSegmentationOutput,
-  ReviewerAlignmentOutput
-} from './base/AgentTypes';
+import type { AgentConfig, DiffItem, OverallAnalysis, AgentStatus, AgentResult } from '@/types';
+import { DEFAULT_AGENT_CONFIGS } from './base/AgentTypes';
+import type { AgentType, DiffSegmentationOutput, ReviewerAlignmentOutput } from './base/AgentTypes';
 
 /**
  * Orchestrates multiple AI agents for comprehensive manuscript analysis
  */
 export class AnalysisOrchestrator {
-  private agents: Map<AgentType, any> = new Map();
+  private agents: Map<AgentType, unknown> = new Map();
   private agentStatuses: Map<AgentType, AgentStatus> = new Map();
-  private executionResults: Map<AgentType, AgentResult<any>> = new Map();
+  private executionResults: Map<AgentType, AgentResult<unknown>> = new Map();
 
   constructor(configs?: Partial<Record<AgentType, AgentConfig>>) {
     this.initializeAgents(configs);
@@ -33,16 +21,18 @@ export class AnalysisOrchestrator {
    */
   private initializeAgents(configs?: Partial<Record<AgentType, AgentConfig>>): void {
     // Initialize Diff Segmentation Agent
-    const diffSegConfig = configs?.['diff-segmentation'] || DEFAULT_AGENT_CONFIGS['diff-segmentation'];
+    const diffSegConfig =
+      configs?.['diff-segmentation'] || DEFAULT_AGENT_CONFIGS['diff-segmentation'];
     this.agents.set('diff-segmentation', new DiffSegmentationAgent(diffSegConfig));
 
     // Initialize Reviewer Alignment Agent
-    const reviewerConfig = configs?.['reviewer-alignment'] || DEFAULT_AGENT_CONFIGS['reviewer-alignment'];
+    const reviewerConfig =
+      configs?.['reviewer-alignment'] || DEFAULT_AGENT_CONFIGS['reviewer-alignment'];
     this.agents.set('reviewer-alignment', new ReviewerAlignmentAgent(reviewerConfig));
 
     // Initialize agent statuses
     this.agents.forEach((agent, type) => {
-      this.agentStatuses.set(type, agent.getStatus());
+      this.agentStatuses.set(type, (agent as { getStatus: () => AgentStatus }).getStatus());
     });
   }
 
@@ -50,7 +40,7 @@ export class AnalysisOrchestrator {
    * Run comprehensive analysis using all available agents
    */
   async runComprehensiveAnalysis(
-    diffs: DiffItem[], 
+    diffs: DiffItem[],
     reviewerRequests?: string
   ): Promise<{
     segmentationResult: AgentResult<DiffSegmentationOutput>;
@@ -68,12 +58,17 @@ export class AnalysisOrchestrator {
 
     try {
       // Run diff segmentation analysis
-      const segmentationResult = await this.runAgent('diff-segmentation', { diffs });
-      
+      const segmentationResult = await this.runAgent<DiffSegmentationOutput>('diff-segmentation', {
+        diffs,
+      });
+
       // Run reviewer alignment analysis (if requests provided)
       let alignmentResult: AgentResult<ReviewerAlignmentOutput>;
       if (reviewerRequests && reviewerRequests.trim()) {
-        alignmentResult = await this.runAgent('reviewer-alignment', { diffs, reviewerRequests });
+        alignmentResult = await this.runAgent<ReviewerAlignmentOutput>('reviewer-alignment', {
+          diffs,
+          reviewerRequests,
+        });
       } else {
         alignmentResult = {
           success: true,
@@ -84,19 +79,19 @@ export class AnalysisOrchestrator {
               alignedChanges: 0,
               alignmentPercentage: 0,
               topRequests: [],
-              averageAlignmentScore: 0
-            }
+              averageAlignmentScore: 0,
+            },
           },
           executionTime: 0,
           usedFallback: false,
-          confidence: 0
+          confidence: 0,
         };
       }
 
       // Create overall analysis
       const overallAnalysis = this.createOverallAnalysis(
-        segmentationResult, 
-        alignmentResult, 
+        segmentationResult,
+        alignmentResult,
         diffs.length
       );
 
@@ -107,20 +102,26 @@ export class AnalysisOrchestrator {
         segmentationResult,
         alignmentResult,
         overallAnalysis,
-        executionSummary
+        executionSummary,
       };
-
     } catch (error) {
       console.error('Comprehensive analysis failed:', error);
-      throw new Error(`Analysis orchestration failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Analysis orchestration failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
   /**
    * Run a specific agent
    */
-  async runAgent<T = any>(agentType: AgentType, input: any): Promise<AgentResult<T>> {
-    const agent = this.agents.get(agentType);
+  async runAgent<T = unknown>(agentType: AgentType, input: unknown): Promise<AgentResult<T>> {
+    const agent = this.agents.get(agentType) as {
+      execute: (input: unknown) => Promise<AgentResult<T>>;
+      getStatus: () => AgentStatus;
+      isAvailable: () => boolean;
+      getEmptyResult: () => T;
+    };
     if (!agent) {
       throw new Error(`Agent ${agentType} not found`);
     }
@@ -131,7 +132,7 @@ export class AnalysisOrchestrator {
 
     try {
       const result = await agent.execute(input);
-      this.executionResults.set(agentType, result);
+      this.executionResults.set(agentType, result as AgentResult<unknown>);
       this.agentStatuses.set(agentType, agent.getStatus());
       return result;
     } catch (error) {
@@ -141,9 +142,9 @@ export class AnalysisOrchestrator {
         error: error instanceof Error ? error.message : 'Unknown error',
         executionTime: 0,
         usedFallback: false,
-        confidence: 0
+        confidence: 0,
       };
-      this.executionResults.set(agentType, errorResult);
+      this.executionResults.set(agentType, errorResult as AgentResult<unknown>);
       this.agentStatuses.set(agentType, agent.getStatus());
       throw error;
     }
@@ -171,7 +172,9 @@ export class AnalysisOrchestrator {
    * Update agent configuration
    */
   updateAgentConfig(agentType: AgentType, config: Partial<AgentConfig>): void {
-    const agent = this.agents.get(agentType);
+    const agent = this.agents.get(agentType) as
+      | { updateConfig: (config: Partial<AgentConfig>) => void }
+      | undefined;
     if (agent) {
       agent.updateConfig(config);
     }
@@ -181,7 +184,7 @@ export class AnalysisOrchestrator {
    * Reset all agents
    */
   resetAgents(): void {
-    this.agents.forEach(agent => agent.reset());
+    this.agents.forEach((agent) => (agent as { reset: () => void }).reset());
     this.resetExecution();
   }
 
@@ -189,18 +192,18 @@ export class AnalysisOrchestrator {
    * Check if any agent is currently running
    */
   isAnyAgentRunning(): boolean {
-    return Array.from(this.agentStatuses.values()).some(status => status.status === 'running');
+    return Array.from(this.agentStatuses.values()).some((status) => status.status === 'running');
   }
 
   /**
    * Get execution results for all agents
    */
-  getExecutionResults(): Record<AgentType, AgentResult<any> | undefined> {
-    const results: Partial<Record<AgentType, AgentResult<any>>> = {};
+  getExecutionResults(): Record<AgentType, AgentResult<unknown> | undefined> {
+    const results: Partial<Record<AgentType, AgentResult<unknown>>> = {};
     this.executionResults.forEach((result, type) => {
       results[type] = result;
     });
-    return results as Record<AgentType, AgentResult<any> | undefined>;
+    return results as Record<AgentType, AgentResult<unknown> | undefined>;
   }
 
   /**
@@ -209,7 +212,7 @@ export class AnalysisOrchestrator {
   private resetExecution(): void {
     this.executionResults.clear();
     this.agents.forEach((agent, type) => {
-      this.agentStatuses.set(type, agent.getStatus());
+      this.agentStatuses.set(type, (agent as { getStatus: () => AgentStatus }).getStatus());
     });
   }
 
@@ -227,26 +230,28 @@ export class AnalysisOrchestrator {
 
     // Section breakdown
     const sectionBreakdown: Record<string, number> = {};
-    analyses.forEach(analysis => {
+    analyses.forEach((analysis) => {
       sectionBreakdown[analysis.section] = (sectionBreakdown[analysis.section] || 0) + 1;
     });
 
     // Priority breakdown
     const priorityBreakdown: Record<string, number> = {};
-    analyses.forEach(analysis => {
+    analyses.forEach((analysis) => {
       priorityBreakdown[analysis.priority] = (priorityBreakdown[analysis.priority] || 0) + 1;
     });
 
     // Assessment breakdown
     const assessmentBreakdown: Record<string, number> = {};
-    analyses.forEach(analysis => {
-      assessmentBreakdown[analysis.assessment] = (assessmentBreakdown[analysis.assessment] || 0) + 1;
+    analyses.forEach((analysis) => {
+      assessmentBreakdown[analysis.assessment] =
+        (assessmentBreakdown[analysis.assessment] || 0) + 1;
     });
 
     // Calculate average confidence
-    const averageConfidence = analyses.length > 0
-      ? analyses.reduce((sum, a) => sum + a.confidence, 0) / analyses.length
-      : 0;
+    const averageConfidence =
+      analyses.length > 0
+        ? analyses.reduce((sum, a) => sum + a.confidence, 0) / analyses.length
+        : 0;
 
     // Generate recommendations
     const recommendations = this.generateRecommendations(
@@ -256,11 +261,7 @@ export class AnalysisOrchestrator {
     );
 
     // Create summary
-    const summary = this.createAnalysisSummary(
-      segmentationResult,
-      alignmentResult,
-      totalChanges
-    );
+    const summary = this.createAnalysisSummary(segmentationResult, alignmentResult, totalChanges);
 
     return {
       summary,
@@ -269,7 +270,7 @@ export class AnalysisOrchestrator {
       priorityBreakdown,
       assessmentBreakdown,
       averageConfidence,
-      recommendations
+      recommendations,
     };
   }
 
@@ -286,16 +287,19 @@ export class AnalysisOrchestrator {
     parts.push(`Analyzed ${totalChanges} changes in the manuscript revision.`);
 
     if (segmentationResult.success) {
-      const topSection = Object.entries(segmentationResult.data.summary.sectionBreakdown)
-        .sort(([,a], [,b]) => b - a)[0];
-      
+      const topSection = Object.entries(segmentationResult.data.summary.sectionBreakdown).sort(
+        ([, a], [, b]) => b - a
+      )[0];
+
       if (topSection) {
         parts.push(`Most changes were in the ${topSection[0]} section (${topSection[1]} changes).`);
       }
     }
 
     if (alignmentResult.success && alignmentResult.data.summary.alignmentPercentage > 0) {
-      parts.push(`${alignmentResult.data.summary.alignmentPercentage}% of changes align with reviewer requests.`);
+      parts.push(
+        `${alignmentResult.data.summary.alignmentPercentage}% of changes align with reviewer requests.`
+      );
     }
 
     return parts.join(' ');
@@ -317,7 +321,9 @@ export class AnalysisOrchestrator {
       const total = Object.values(priorityBreakdown).reduce((sum, count) => sum + count, 0);
 
       if (priorityBreakdown['high'] && priorityBreakdown['high'] / total > 0.3) {
-        recommendations.push('Consider reviewing high-priority changes for potential quality improvements');
+        recommendations.push(
+          'Consider reviewing high-priority changes for potential quality improvements'
+        );
       }
 
       if (segmentationResult.data.summary.averageConfidence < 0.7) {
@@ -330,7 +336,9 @@ export class AnalysisOrchestrator {
       const { alignmentPercentage, topRequests } = alignmentResult.data.summary;
 
       if (alignmentPercentage < 50) {
-        recommendations.push('Consider addressing more specific reviewer requests in future revisions');
+        recommendations.push(
+          'Consider addressing more specific reviewer requests in future revisions'
+        );
       }
 
       if (topRequests.length > 0) {
@@ -340,7 +348,9 @@ export class AnalysisOrchestrator {
 
     // General recommendations
     if (totalChanges > 100) {
-      recommendations.push('Large number of changes detected - consider organizing into themed revision rounds');
+      recommendations.push(
+        'Large number of changes detected - consider organizing into themed revision rounds'
+      );
     }
 
     return recommendations;
@@ -360,7 +370,7 @@ export class AnalysisOrchestrator {
     let failedAgents = 0;
     let usedFallback = false;
 
-    this.executionResults.forEach(result => {
+    this.executionResults.forEach((result) => {
       if (result.success) {
         successfulAgents++;
         if (result.usedFallback) {
@@ -375,7 +385,7 @@ export class AnalysisOrchestrator {
       totalTime,
       successfulAgents,
       failedAgents,
-      usedFallback
+      usedFallback,
     };
   }
 }
