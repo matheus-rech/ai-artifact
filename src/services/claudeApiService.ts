@@ -51,11 +51,30 @@ export class ClaudeAPIService {
   private async sendRequest(request: ClaudeAPIRequest): Promise<string> {
     // Robust parsing of numeric env vars – fall back to sane defaults when the
     // variable is missing **or** not a valid positive number.
-    const envRetries = Number(process.env['NEXT_PUBLIC_MAX_RETRIES']);
-    const envTimeout = Number(process.env['NEXT_PUBLIC_API_TIMEOUT']);
+    const envRetriesRaw = process.env['NEXT_PUBLIC_MAX_RETRIES'];
+    const envTimeoutRaw = process.env['NEXT_PUBLIC_API_TIMEOUT'];
+    const envRetries = Number(envRetriesRaw);
+    const envTimeout = Number(envTimeoutRaw);
 
-    const maxRetries = Number.isFinite(envRetries) && envRetries > 0 ? envRetries : 3;
-    const timeout = Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : 30_000;
+    let maxRetries: number;
+    if (envRetriesRaw !== undefined && (!Number.isFinite(envRetries) || envRetries <= 0)) {
+      console.warn(
+        `[claudeApiService] Invalid NEXT_PUBLIC_MAX_RETRIES value "${envRetriesRaw}" – using default 3`
+      );
+      maxRetries = 3;
+    } else {
+      maxRetries = Number.isFinite(envRetries) && envRetries > 0 ? envRetries : 3;
+    }
+
+    let timeout: number;
+    if (envTimeoutRaw !== undefined && (!Number.isFinite(envTimeout) || envTimeout <= 0)) {
+      console.warn(
+        `[claudeApiService] Invalid NEXT_PUBLIC_API_TIMEOUT value "${envTimeoutRaw}" – using default 30000`
+      );
+      timeout = 30_000;
+    } else {
+      timeout = Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : 30_000;
+    }
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
