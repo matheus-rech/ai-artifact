@@ -68,12 +68,17 @@ export class AnalysisOrchestrator {
 
     try {
       // Run diff segmentation analysis
-      const segmentationResult = await this.runAgent('diff-segmentation', { diffs });
+      const segmentationResult = await this.runAgent<DiffSegmentationOutput>('diff-segmentation', {
+        diffs,
+      });
 
       // Run reviewer alignment analysis (if requests provided)
       let alignmentResult: AgentResult<ReviewerAlignmentOutput>;
       if (reviewerRequests && reviewerRequests.trim()) {
-        alignmentResult = await this.runAgent('reviewer-alignment', { diffs, reviewerRequests });
+        alignmentResult = await this.runAgent<ReviewerAlignmentOutput>('reviewer-alignment', {
+          diffs,
+          reviewerRequests,
+        });
       } else {
         alignmentResult = {
           success: true,
@@ -149,7 +154,7 @@ export class AnalysisOrchestrator {
             priorityBreakdown: {},
             averageConfidence: 0,
           },
-        } as T;
+        } as unknown as T;
       } else {
         emptyData = {
           alignedAnalyses: [],
@@ -160,7 +165,7 @@ export class AnalysisOrchestrator {
             topRequests: [],
             averageAlignmentScore: 0,
           },
-        } as T;
+        } as unknown as T;
       }
 
       const errorResult: AgentResult<T> = {
