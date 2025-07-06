@@ -53,7 +53,7 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
     // where two calls could pass the check above before `setState` completes.
     isComputingRef.current = true;
 
-    setState(prev => ({
+    setState((prev: UseDiffComputationState): UseDiffComputationState => ({
       ...prev,
       isComputing: true,
       error: null
@@ -75,16 +75,15 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
       }
 
       // Compute diffs based on granularity
-      let diffs: DiffItem[];
-      if (granularity === 'word') {
-        diffs = diffEngine.generateWordDiffs(original, revised);
-      } else {
-        diffs = diffEngine.generateSentenceDiffs(original, revised);
-      }
+      const diffs: DiffItem[] = await Promise.resolve(
+        granularity === 'word'
+          ? diffEngine.generateWordDiffs(original, revised)
+          : diffEngine.generateSentenceDiffs(original, revised)
+      );
 
       const computationTime = performance.now() - startTime;
 
-      setState(prev => ({
+      setState((prev: UseDiffComputationState): UseDiffComputationState => ({
         ...prev,
         diffs,
         isComputing: false,
@@ -94,7 +93,7 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
 
       isComputingRef.current = false;
 
-      console.log(`Diff computation completed: ${diffs.length} changes in ${computationTime.toFixed(2)}ms`);
+      console.warn(`Diff computation completed: ${diffs.length} changes in ${computationTime.toFixed(2)}ms`);
       
       return diffs;
 
@@ -102,7 +101,7 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
       const errorMessage = error instanceof Error ? error.message : 'Unknown diff computation error';
       console.error('Diff computation failed:', error);
 
-      setState(prev => ({
+      setState((prev: UseDiffComputationState): UseDiffComputationState => ({
         ...prev,
         isComputing: false,
         error: errorMessage
@@ -118,12 +117,13 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
    * Reset diff computation state
    */
   const resetDiffs = useCallback((): void => {
-    setState({
+    const resetState: UseDiffComputationState = {
       diffs: [],
       isComputing: false,
       computationTime: 0,
       error: null
-    });
+    };
+    setState(resetState);
 
     // Ensure the ref flag is also reset so that new computations can be started.
     isComputingRef.current = false;
