@@ -94,7 +94,7 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
           segmentationResult: result.segmentationResult,
           alignmentResult: result.alignmentResult,
           overallAnalysis: result.overallAnalysis,
-          agentStatuses: orchestrator.getAllAgentStatuses(),
+          agentStatuses: orchestrator.getAllStatuses() as unknown as Record<AgentType, AgentStatus>,
           analysisMetrics,
           error: null,
         }));
@@ -117,14 +117,14 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
    */
   const resetAnalysis = useCallback((): void => {
     const orchestrator = getOrchestrator();
-    orchestrator.resetAgents();
+    orchestrator.resetAll();
 
     setState({
       isAnalyzing: false,
       segmentationResult: null,
       alignmentResult: null,
       overallAnalysis: null,
-      agentStatuses: orchestrator.getAllAgentStatuses(),
+      agentStatuses: orchestrator.getAllStatuses() as unknown as Record<AgentType, AgentStatus>,
       analysisMetrics: {
         totalTime: 0,
         diffCount: 0,
@@ -141,7 +141,7 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
   const getAgentStatus = useCallback(
     (agentType: AgentType): AgentStatus | undefined => {
       const orchestrator = getOrchestrator();
-      return orchestrator.getAgentStatus(agentType);
+      return orchestrator.getAgentStatus(agentType) as unknown as AgentStatus;
     },
     [getOrchestrator]
   );

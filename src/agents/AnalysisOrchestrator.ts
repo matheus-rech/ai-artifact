@@ -1,36 +1,15 @@
 import { DiffSegmentationAgent } from './DiffSegmentationAgent';
 import { ReviewerAlignmentAgent } from './ReviewerAlignmentAgent';
- devin/1751828946-production-fixes
-
- devin/1751845727-add-env-example
-import type { AgentConfig, DiffItem, OverallAnalysis, AgentStatus, AgentResult } from '@/types';
-import { DEFAULT_AGENT_CONFIGS } from './base/AgentTypes';
-import type { AgentType, DiffSegmentationOutput, ReviewerAlignmentOutput } from './base/AgentTypes';
-
-import type { BaseAgent } from './base/BaseAgent';
-import type { AgentConfig, DiffItem, OverallAnalysis, AgentStatus, AgentResult } from '@/types';
- main
+import type { DiffItem, OverallAnalysis, AgentConfig, AgentResult } from '@/types';
 import { DEFAULT_AGENT_CONFIGS } from './base/AgentTypes';
 import type {
   AgentType,
-  AgentConfig,
-  AgentResult,
-  AgentStatus,
   DiffSegmentationInput,
   DiffSegmentationOutput,
   ReviewerAlignmentInput,
   ReviewerAlignmentOutput,
 } from './base/AgentTypes';
- devin/1751828946-production-fixes
 import { BaseAgent } from './base/BaseAgent';
-
- main
-
-import type { AgentConfig, DiffItem, OverallAnalysis, AgentStatus, AgentResult } from '@/types';
-import { DEFAULT_AGENT_CONFIGS } from './base/AgentTypes';
-import type { AgentType, DiffSegmentationOutput, ReviewerAlignmentOutput } from './base/AgentTypes';
- main
- main
 
 type AgentInput = DiffSegmentationInput | ReviewerAlignmentInput;
 type AgentOutput = DiffSegmentationOutput | ReviewerAlignmentOutput;
@@ -40,7 +19,7 @@ type AgentOutput = DiffSegmentationOutput | ReviewerAlignmentOutput;
  */
 export class AnalysisOrchestrator {
   private agents: Map<AgentType, BaseAgent<AgentInput, AgentOutput>> = new Map();
-  private agentStatuses: Map<AgentType, AgentStatus> = new Map();
+  private agentStatuses: Map<AgentType, 'idle' | 'executing' | 'completed' | 'error'> = new Map();
   private executionResults: Map<AgentType, AgentResult<AgentOutput>> = new Map();
 
   constructor(configs?: Partial<Record<AgentType, AgentConfig>>) {
@@ -69,7 +48,6 @@ export class AnalysisOrchestrator {
   /**
    * Execute diff segmentation analysis
    */
- devin/1751828946-production-fixes
   async executeDiffSegmentation(
     input: DiffSegmentationInput
   ): Promise<AgentResult<DiffSegmentationOutput>> {
@@ -78,6 +56,31 @@ export class AnalysisOrchestrator {
       throw new Error('Diff segmentation agent not initialized');
     }
 
+    this.agentStatuses.set('diff-segmentation', 'executing');
+
+    try {
+      const result = await agent.execute(input);
+      this.executionResults.set('diff-segmentation', result);
+      this.agentStatuses.set('diff-segmentation', 'completed');
+      return result as AgentResult<DiffSegmentationOutput>;
+    } catch (error) {
+      this.agentStatuses.set('diff-segmentation', 'error');
+      const errorResult: AgentResult<DiffSegmentationOutput> = {
+        success: false,
+        data: { analyses: [], summary: { totalAnalyzed: 0, sectionBreakdown: {}, priorityBreakdown: {}, averageConfidence: 0 } },
+        error: error instanceof Error ? error.message : 'Unknown error',
+        executionTime: 0,
+        usedFallback: false,
+        confidence: 0,
+      };
+      this.executionResults.set('diff-segmentation', errorResult);
+      return errorResult;
+    }
+  }
+
+  /**
+   * Run comprehensive analysis workflow
+   */
   async runComprehensiveAnalysis(
     diffs: DiffItem[],
     reviewerRequests?: string
@@ -97,13 +100,9 @@ export class AnalysisOrchestrator {
 
     try {
       // Run diff segmentation analysis
- devin/1751845727-add-env-example
-      const segmentationResult = await this.runAgent('diff-segmentation', { diffs });
-
       const segmentationResult = await this.runAgent<DiffSegmentationOutput>('diff-segmentation', {
         diffs,
       });
- main
 
       // Run reviewer alignment analysis (if requests provided)
       let alignmentResult: AgentResult<ReviewerAlignmentOutput>;
@@ -137,40 +136,28 @@ export class AnalysisOrchestrator {
         alignmentResult,
         diffs.length
       );
- main
 
-    this.agentStatuses.set('diff-segmentation', 'executing');
+      const totalTime = Date.now() - startTime;
+      const successfulAgents = [segmentationResult, alignmentResult].filter(r => r.success).length;
+      const failedAgents = 2 - successfulAgents;
+      const usedFallback = segmentationResult.usedFallback || alignmentResult.usedFallback;
 
-    try {
-      const result = await agent.execute(input);
-      this.executionResults.set('diff-segmentation', result);
-      this.agentStatuses.set('diff-segmentation', 'completed');
-      return result as AgentResult<DiffSegmentationOutput>;
-    } catch (error) {
- devin/1751828946-production-fixes
-      this.agentStatuses.set('diff-segmentation', 'error');
-      const errorResult: AgentResult<DiffSegmentationOutput> = {
-        success: false,
-        data: { analyses: [] },
-        error: error instanceof Error ? error.message : 'Unknown error',
-        executionTime: 0,
-        usedFallback: false,
-        confidence: 0,
+      return {
+        segmentationResult,
+        alignmentResult,
+        overallAnalysis,
+        executionSummary: {
+          totalTime,
+          successfulAgents,
+          failedAgents,
+          usedFallback,
+        },
       };
-      this.executionResults.set('diff-segmentation', errorResult);
-      return errorResult;
-
- devin/1751831368-production-fixes
-
+    } catch (error) {
       console.error('Comprehensive analysis failed:', error);
- devin/1751845727-add-env-example
-
- main
- main
       throw new Error(
         `Analysis orchestration failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
- main
     }
   }
 
@@ -196,7 +183,7 @@ export class AnalysisOrchestrator {
       this.agentStatuses.set('reviewer-alignment', 'error');
       const errorResult: AgentResult<ReviewerAlignmentOutput> = {
         success: false,
-        data: { analyses: [] },
+        data: { alignedAnalyses: [], summary: { totalChanges: 0, alignedChanges: 0, alignmentPercentage: 0, topRequests: [], averageAlignmentScore: 0 } },
         error: error instanceof Error ? error.message : 'Unknown error',
         executionTime: 0,
         usedFallback: false,
@@ -236,15 +223,15 @@ export class AnalysisOrchestrator {
   /**
    * Get the current status of an agent
    */
-  getAgentStatus(agentType: AgentType): AgentStatus {
+  getAgentStatus(agentType: AgentType): 'idle' | 'executing' | 'completed' | 'error' {
     return this.agentStatuses.get(agentType) || 'idle';
   }
 
   /**
    * Get all agent statuses
    */
-  getAllStatuses(): Record<AgentType, AgentStatus> {
-    return Object.fromEntries(this.agentStatuses) as Record<AgentType, AgentStatus>;
+  getAllStatuses(): Record<AgentType, 'idle' | 'executing' | 'completed' | 'error'> {
+    return Object.fromEntries(this.agentStatuses) as Record<AgentType, 'idle' | 'executing' | 'completed' | 'error'>;
   }
 
   /**
@@ -263,6 +250,97 @@ export class AnalysisOrchestrator {
   }
 
   /**
+   * Reset execution state
+   */
+  private resetExecution(): void {
+    this.agentStatuses.forEach((_, agentType) => {
+      this.agentStatuses.set(agentType, 'idle');
+    });
+    this.executionResults.clear();
+  }
+
+  /**
+   * Run a specific agent
+   */
+  private async runAgent<T extends AgentOutput>(
+    agentType: AgentType,
+    input: AgentInput
+  ): Promise<AgentResult<T>> {
+    const agent = this.agents.get(agentType);
+    if (!agent) {
+      throw new Error(`Agent ${agentType} not initialized`);
+    }
+
+    this.agentStatuses.set(agentType, 'executing');
+
+    try {
+      const result = await agent.execute(input);
+      this.executionResults.set(agentType, result);
+      this.agentStatuses.set(agentType, 'completed');
+      return result as AgentResult<T>;
+    } catch (error) {
+      this.agentStatuses.set(agentType, 'error');
+      const errorResult: AgentResult<T> = {
+        success: false,
+        data: {} as T,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        executionTime: 0,
+        usedFallback: false,
+        confidence: 0,
+      };
+      this.executionResults.set(agentType, errorResult);
+      return errorResult;
+    }
+  }
+
+  /**
+   * Create overall analysis from agent results
+   */
+  private createOverallAnalysis(
+    segmentationResult: AgentResult<DiffSegmentationOutput>,
+    alignmentResult: AgentResult<ReviewerAlignmentOutput>,
+    totalChanges: number
+  ): OverallAnalysis {
+    const segmentationAnalyses = segmentationResult.success ? segmentationResult.data.analyses : [];
+    const alignmentAnalyses = alignmentResult.success ? alignmentResult.data.alignedAnalyses : [];
+    
+    const allAnalyses = [...segmentationAnalyses, ...alignmentAnalyses];
+    
+    const sectionBreakdown: Record<string, number> = {};
+    allAnalyses.forEach(analysis => {
+      sectionBreakdown[analysis.section] = (sectionBreakdown[analysis.section] || 0) + 1;
+    });
+
+    const priorityBreakdown: Record<string, number> = {};
+    allAnalyses.forEach(analysis => {
+      priorityBreakdown[analysis.priority] = (priorityBreakdown[analysis.priority] || 0) + 1;
+    });
+
+    const assessmentBreakdown: Record<string, number> = {};
+    allAnalyses.forEach(analysis => {
+      assessmentBreakdown[analysis.assessment] = (assessmentBreakdown[analysis.assessment] || 0) + 1;
+    });
+
+    const averageConfidence = allAnalyses.length > 0 
+      ? allAnalyses.reduce((sum, analysis) => sum + analysis.confidence, 0) / allAnalyses.length
+      : 0;
+
+    return {
+      summary: `Analysis completed for ${totalChanges} changes with ${allAnalyses.length} detailed analyses.`,
+      totalChanges,
+      sectionBreakdown,
+      priorityBreakdown,
+      assessmentBreakdown,
+      averageConfidence,
+      recommendations: [
+        'Review high-priority changes first',
+        'Address negative assessments',
+        'Verify alignment with reviewer requests'
+      ],
+    };
+  }
+
+  /**
    * Reset all agents
    */
   resetAll(): void {
@@ -270,6 +348,13 @@ export class AnalysisOrchestrator {
       this.agentStatuses.set(agentType, 'idle');
     });
     this.executionResults.clear();
+  }
+
+  /**
+   * Check if any agent is currently running
+   */
+  isAnyAgentRunning(): boolean {
+    return Array.from(this.agentStatuses.values()).some(status => status === 'executing');
   }
 
   /**

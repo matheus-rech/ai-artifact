@@ -39,9 +39,9 @@ test.describe('Diff Engine Integration Tests', () => {
           await page.click('text=Upload Documents');
           
           if (engine === 'DMP') {
-            await page.check('input[type="checkbox"]:near(:text("Use diff-match-patch Engine"))');
+            await page.check('input[type="checkbox"]:near(:text("Use Google Diff-Match-Patch Engine"))');
           } else {
-            await page.uncheck('input[type="checkbox"]:near(:text("Use diff-match-patch Engine"))');
+            await page.uncheck('input[type="checkbox"]:near(:text("Use Google Diff-Match-Patch Engine"))');
           }
           
           await page.fill('textarea:near(:text("Original Manuscript"))', original);
@@ -69,9 +69,9 @@ test.describe('Diff Engine Integration Tests', () => {
         const modifiedLongText = longText.replace('Lorem ipsum', 'Modified lorem ipsum').replace('consectetur', 'updated consectetur');
         
         if (engine === 'DMP') {
-          await page.check('input[type="checkbox"]:near(:text("Use diff-match-patch Engine"))');
+          await page.check('input[type="checkbox"]:near(:text("Use Google Diff-Match-Patch Engine"))');
         } else {
-          await page.uncheck('input[type="checkbox"]:near(:text("Use diff-match-patch Engine"))');
+          await page.uncheck('input[type="checkbox"]:near(:text("Use Google Diff-Match-Patch Engine"))');
         }
         
         await page.fill('textarea:near(:text("Original Manuscript"))', longText);
@@ -93,20 +93,20 @@ test.describe('Diff Engine Integration Tests', () => {
   }
   
   test('Engine toggle functionality', async ({ page }) => {
-    const checkbox = page.locator('input[type="checkbox"]:near(:text("Use diff-match-patch Engine"))');
+    const checkbox = page.locator('input[type="checkbox"]:near(:text("Use Google Diff-Match-Patch Engine"))');
     
-    await expect(checkbox).not.toBeChecked();
-    
-    await checkbox.check();
     await expect(checkbox).toBeChecked();
     
     await checkbox.uncheck();
     await expect(checkbox).not.toBeChecked();
+    
+    await checkbox.check();
+    await expect(checkbox).toBeChecked();
   });
   
   test('Advanced Settings visibility', async ({ page }) => {
     await expect(page.locator('text=Advanced Settings')).toBeVisible();
-    await expect(page.locator('text=Use diff-match-patch Engine')).toBeVisible();
-    await expect(page.locator('text=Enhanced diff algorithm with better performance and semantic cleanup')).toBeVisible();
+    await expect(page.locator('text=Use Google Diff-Match-Patch Engine')).toBeVisible();
+    await expect(page.locator('text=Enhanced diff algorithm with better performance')).toBeVisible();
   });
 });
