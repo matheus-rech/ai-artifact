@@ -27,20 +27,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Disabled TypeScript type check due to pre-existing issues in benchmark code
-      # - name: Run TypeScript type check
-      #   run: npm run type-check
+      - name: Run TypeScript type check
+        run: npm run type-check
 
-      # Disabled linting and formatting checks due to pre-existing issues
-      # These should be addressed in a separate PR focused on code quality
-      # - name: Run linting
-      #   run: npm run lint
-      # - name: Run format check
-      #   run: npm run format:check
+      - name: Run linting
+        run: npm run lint
 
-      # Disabled unit tests due to ts-node dependency issue with Jest config
-      # - name: Run unit tests
-      #   run: npm run test:ci
+      - name: Run format check
+        run: npm run format:check
+
+      - name: Run unit tests
+        run: npm run test:ci
 
       - name: Build application
         run: npm run build
