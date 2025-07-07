@@ -167,5 +167,5 @@ export async function runBenchmarks(): Promise<void> {
   const suites = await runner.runBenchmarkSuite(testCases);
   const report = runner.generateReport(suites);
 
-  console.log(report);
+  console.warn(report);
 }

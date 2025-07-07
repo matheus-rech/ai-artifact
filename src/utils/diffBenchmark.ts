@@ -106,8 +106,6 @@ export async function benchmarkDiffEngines(
   
   const performanceDifference = lcsResult.computationTime - diffMatchPatchResult.computationTime;
   
-  let recommendation: 'LCS' | 'DiffMatchPatch';
-  
   const lcsScore = (1 / Math.max(lcsResult.computationTime, 1)) * 0.4 +
                    lcsResult.accuracy * 0.4 +
                    (1 / Math.max(lcsResult.memoryUsage, 1)) * 0.2;
@@ -116,7 +114,7 @@ export async function benchmarkDiffEngines(
                    diffMatchPatchResult.accuracy * 0.4 +
                    (1 / Math.max(diffMatchPatchResult.memoryUsage, 1)) * 0.2;
   
-  recommendation = dmpScore > lcsScore ? 'DiffMatchPatch' : 'LCS';
+  const recommendation = dmpScore > lcsScore ? 'DiffMatchPatch' : 'LCS';
   
   return {
     lcsResult,
