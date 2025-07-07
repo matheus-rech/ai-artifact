@@ -70,7 +70,7 @@ export class ReviewerAlignmentAgent extends BaseAgent<
     analyses: AnalysisItem[],
     reviewerRequests: string
   ): ReviewerAlignmentOutput['summary'] {
-    const alignedAnalyses = analyses.filter((a) => (a as any).alignmentScore && (a as any).alignmentScore > 0);
+    const alignedAnalyses = analyses.filter((a: AnalysisItem & { alignmentScore?: number }) => a.alignmentScore && a.alignmentScore > 0);
     const totalChanges = diffs.length;
     const alignedChanges = alignedAnalyses.length;
     const alignmentPercentage = Math.round((alignedChanges / totalChanges) * 100);
