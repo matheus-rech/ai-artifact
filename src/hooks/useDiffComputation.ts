@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
-import { DiffEngine } from '../services/diffEngine';
-import { DiffMatchPatchEngine } from '../services/diffMatchPatchEngine';
-import type { DiffItem, ValidationResult, DiffGranularity } from '../types';
+import { DiffEngine } from '@/services/diffEngine';
+import { DiffMatchPatchEngine } from '@/services/diffMatchPatchEngine';
+import type { DiffItem, ValidationResult, DiffGranularity } from '@/types';
 
 interface UseDiffComputationState {
   diffs: DiffItem[];
