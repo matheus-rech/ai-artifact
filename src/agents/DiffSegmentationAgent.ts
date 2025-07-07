@@ -1,8 +1,5 @@
 import { BaseAgent } from './base/BaseAgent';
-import type { 
-  DiffSegmentationInput, 
-  DiffSegmentationOutput 
-} from './base/AgentTypes';
+import type { DiffSegmentationInput, DiffSegmentationOutput } from './base/AgentTypes';
 import type { AgentConfig, AnalysisItem } from '@/types';
 import { ClaudeAPIService } from '@/services/claudeApiService';
 import { FallbackService } from '@/services/fallbackService';
@@ -10,7 +7,10 @@ import { FallbackService } from '@/services/fallbackService';
 /**
  * Agent responsible for analyzing and categorizing manuscript diffs by section
  */
-export class DiffSegmentationAgent extends BaseAgent<DiffSegmentationInput, DiffSegmentationOutput> {
+export class DiffSegmentationAgent extends BaseAgent<
+  DiffSegmentationInput,
+  DiffSegmentationOutput
+> {
   private claudeAPI: ClaudeAPIService;
   private fallbackService: FallbackService;
 
@@ -25,13 +25,13 @@ export class DiffSegmentationAgent extends BaseAgent<DiffSegmentationInput, Diff
 
     // Use Claude API for intelligent analysis
     const analyses = await this.claudeAPI.analyzeDiffSegmentation(input.diffs);
-    
+
     this.updateStatus('running', 60, 'Creating summary...');
     const summary = this.createSummary(analyses);
 
     return {
       analyses,
-      summary
+      summary,
     };
   }
 
@@ -40,13 +40,13 @@ export class DiffSegmentationAgent extends BaseAgent<DiffSegmentationInput, Diff
 
     // Use fallback heuristic analysis
     const analyses = this.fallbackService.analyzeDiffSegmentation(input.diffs);
-    
+
     this.updateStatus('running', 60, 'Creating summary...');
     const summary = this.createSummary(analyses);
 
     return {
       analyses,
-      summary
+      summary,
     };
   }
 
@@ -64,7 +64,9 @@ export class DiffSegmentationAgent extends BaseAgent<DiffSegmentationInput, Diff
     }
 
     if (input.diffs.length > 200) {
-      console.warn(`Large number of diffs (${input.diffs.length}). Consider chunking for better performance.`);
+      console.warn(
+        `Large number of diffs (${input.diffs.length}). Consider chunking for better performance.`
+      );
     }
 
     // Validate each diff item
@@ -114,8 +116,8 @@ export class DiffSegmentationAgent extends BaseAgent<DiffSegmentationInput, Diff
         totalAnalyzed: 0,
         sectionBreakdown: {},
         priorityBreakdown: {},
-        averageConfidence: 0
-      }
+        averageConfidence: 0,
+      },
     };
   }
 
@@ -130,10 +132,10 @@ export class DiffSegmentationAgent extends BaseAgent<DiffSegmentationInput, Diff
     for (const analysis of analyses) {
       // Count sections
       sectionBreakdown[analysis.section] = (sectionBreakdown[analysis.section] || 0) + 1;
-      
+
       // Count priorities
       priorityBreakdown[analysis.priority] = (priorityBreakdown[analysis.priority] || 0) + 1;
-      
+
       // Sum confidence
       totalConfidence += analysis.confidence;
     }
@@ -142,7 +144,7 @@ export class DiffSegmentationAgent extends BaseAgent<DiffSegmentationInput, Diff
       totalAnalyzed: analyses.length,
       sectionBreakdown,
       priorityBreakdown,
-      averageConfidence: analyses.length > 0 ? totalConfidence / analyses.length : 0
+      averageConfidence: analyses.length > 0 ? totalConfidence / analyses.length : 0,
     };
   }
 
@@ -160,13 +162,13 @@ export class DiffSegmentationAgent extends BaseAgent<DiffSegmentationInput, Diff
     };
   } {
     const { analyses, summary } = output;
-    
+
     // Top sections by count
     const topSections = Object.entries(summary.sectionBreakdown)
       .map(([section, count]) => ({
         section,
         count,
-        percentage: Math.round((count / summary.totalAnalyzed) * 100)
+        percentage: Math.round((count / summary.totalAnalyzed) * 100),
       }))
       .sort((a, b) => b.count - a.count);
 
@@ -175,25 +177,26 @@ export class DiffSegmentationAgent extends BaseAgent<DiffSegmentationInput, Diff
       .map(([priority, count]) => ({
         priority,
         count,
-        percentage: Math.round((count / summary.totalAnalyzed) * 100)
+        percentage: Math.round((count / summary.totalAnalyzed) * 100),
       }))
       .sort((a, b) => b.count - a.count);
 
     // Confidence statistics
-    const confidenceValues = analyses.map(a => a.confidence).sort((a, b) => a - b);
+    const confidenceValues = analyses.map((a) => a.confidence).sort((a, b) => a - b);
     const confidenceStats = {
       min: confidenceValues[0] || 0,
       max: confidenceValues[confidenceValues.length - 1] || 0,
       average: summary.averageConfidence,
-      median: confidenceValues.length > 0 
-        ? confidenceValues[Math.floor(confidenceValues.length / 2)]! 
-        : 0
+      median:
+        confidenceValues.length > 0
+          ? confidenceValues[Math.floor(confidenceValues.length / 2)]!
+          : 0,
     };
 
     return {
       topSections,
       priorityDistribution,
-      confidenceStats
+      confidenceStats,
     };
   }
 }
