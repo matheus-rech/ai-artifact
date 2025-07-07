@@ -91,6 +91,9 @@ export class ClaudeAPIService {
   }
 
   private initializeAPI(): void {
+ devin/1751838409-production-security-fixes
+    if (typeof window !== 'undefined' && 'claude' in window) {
+
     const apiKey = process.env['ANTHROPIC_API_KEY'];
 
     // Never bundle the Claude API key in client-side code. Only instantiate the SDK
@@ -105,10 +108,13 @@ export class ClaudeAPIService {
       });
     } else if (isBrowser && 'claude' in window) {
       // Client-side fallback (e.g. window.claude injected for demos).
+ main
       this.fallbackToWindowClaude = true;
     } else {
       console.warn('No Claude API configuration found. Falling back to heuristic analysis.');
     }
+    
+    this.anthropic = {} as Anthropic;
   }
 
   /**
@@ -151,10 +157,29 @@ export class ClaudeAPIService {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         if (this.anthropic) {
+ devin/1751838409-production-security-fixes
+          // Use our secure backend API endpoint instead of direct Anthropic SDK
+          const response = await fetch('/api/claude', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(request),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`API error: ${errorData.error || response.statusText}`);
+          }
+
+          const data = await response.json();
+          return data.content;
+        } else if (this.fallbackToWindowClaude) {
+
           // Use Anthropic SDK
           const response = await Promise.race([
             this.anthropic.messages.create({
-              model: 'claude-3-sonnet-20240229',
+              model: 'claude-3-7-sonnet-20250219',
               max_tokens: request.maxTokens || 4000,
               temperature: request.temperature || 0.3,
               messages: [
@@ -174,6 +199,7 @@ export class ClaudeAPIService {
           }
           throw new Error('Invalid response format');
         } else if (this.fallbackToWindowClaude && window.claude) {
+ main
           // Use window.claude for artifacts
           const response = await Promise.race([
             window.claude.complete(request.prompt),
