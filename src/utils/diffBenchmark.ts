@@ -21,9 +21,10 @@ export interface BenchmarkComparison {
  * Measures memory usage before and after an operation
  */
 function measureMemoryUsage(): number {
-  if (typeof performance !== 'undefined' && (performance as any).memory) {
-    return (performance as any).memory.usedJSHeapSize;
+  if (typeof process?.memoryUsage === 'function') {
+    return process.memoryUsage().heapUsed; // For Node.js
   }
+  // The browser-specific implementation was removed as this util is run in Node.
   return 0;
 }
 
