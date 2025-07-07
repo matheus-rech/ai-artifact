@@ -138,12 +138,18 @@ export class APIClient {
       return {
         success: true,
         data: { analyses },
+        executionTime: 0,
+        usedFallback: false,
+        confidence: 1.0
       };
     } catch (error) {
       return {
         success: false,
         data: { analyses: [] },
         error: error instanceof Error ? error.message : 'Unknown error occurred',
+        executionTime: 0,
+        usedFallback: true,
+        confidence: 0
       };
     }
   }
@@ -157,12 +163,18 @@ export class APIClient {
       return {
         success: true,
         data: { analyses },
+        executionTime: 0,
+        usedFallback: false,
+        confidence: 1.0
       };
     } catch (error) {
       return {
         success: false,
         data: { analyses: [] },
         error: error instanceof Error ? error.message : 'Unknown error occurred',
+        executionTime: 0,
+        usedFallback: true,
+        confidence: 0
       };
     }
   }
