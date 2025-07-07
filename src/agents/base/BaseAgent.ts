@@ -11,7 +11,7 @@ export abstract class BaseAgent<TInput, TOutput> {
     this.config = config;
     this.status = {
       agent: config.name,
-      status: 'idle'
+      status: 'idle',
     };
   }
 
@@ -36,19 +36,18 @@ export abstract class BaseAgent<TInput, TOutput> {
       this.updateStatus('completed', 100, 'Analysis completed successfully');
 
       const executionTime = Date.now() - startTime;
-      
+
       return {
         success: true,
         data: result,
         executionTime,
         usedFallback: false,
-        confidence: this.calculateConfidence(result)
+        confidence: this.calculateConfidence(result),
       };
-
     } catch (error) {
       const executionTime = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
       console.error(`Agent ${this.config.name} failed:`, error);
       this.updateStatus('error', 0, errorMessage);
 
@@ -64,7 +63,7 @@ export abstract class BaseAgent<TInput, TOutput> {
             data: fallbackResult,
             executionTime: Date.now() - startTime,
             usedFallback: true,
-            confidence: this.calculateConfidence(fallbackResult) * 0.7 // Reduced confidence for fallback
+            confidence: this.calculateConfidence(fallbackResult) * 0.7, // Reduced confidence for fallback
           };
         } catch (fallbackError) {
           this.updateStatus('error', 0, 'Fallback analysis also failed');
@@ -78,7 +77,7 @@ export abstract class BaseAgent<TInput, TOutput> {
         error: errorMessage,
         executionTime,
         usedFallback: false,
-        confidence: 0
+        confidence: 0,
       };
     }
   }
@@ -93,16 +92,12 @@ export abstract class BaseAgent<TInput, TOutput> {
   /**
    * Update agent status
    */
-  protected updateStatus(
-    status: AgentStatus['status'], 
-    progress?: number, 
-    message?: string
-  ): void {
+  protected updateStatus(status: AgentStatus['status'], progress?: number, message?: string): void {
     this.status = {
       agent: this.config.name,
       status,
       progress,
-      message
+      message,
     };
   }
 
@@ -129,7 +124,7 @@ export abstract class BaseAgent<TInput, TOutput> {
   reset(): void {
     this.status = {
       agent: this.config.name,
-      status: 'idle'
+      status: 'idle',
     };
   }
 

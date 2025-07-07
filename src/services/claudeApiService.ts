@@ -1,3 +1,45 @@
+interface ProcessEnv {
+  ANTHROPIC_API_KEY?: string;
+  NEXT_PUBLIC_ALLOW_BROWSER?: string;
+  NEXT_PUBLIC_MAX_RETRIES?: string;
+  NEXT_PUBLIC_API_TIMEOUT?: string;
+}
+
+// Ensure process is available in browser environments
+declare const process: {
+  env: ProcessEnv;
+};
+
+interface WindowClaude {
+  complete(prompt: string): Promise<string>;
+}
+
+interface ClaudeAnalysisResponse {
+  diffId: string;
+  section: string;
+  priority: string;
+  assessment: string;
+  comment: string;
+  reviewerPoint: string;
+  confidence: number;
+}
+
+interface ClaudeReviewerResponse {
+  diffId: string;
+  alignmentScore: number;
+  section: string;
+  priority: string;
+  assessment: string;
+  reviewerPoint: string;
+  comment: string;
+  confidence: number;
+}
+
+declare global {
+  interface Window {
+    claude?: WindowClaude;
+  }
+}
 import Anthropic from '@anthropic-ai/sdk';
 import type {
   DiffItem,
@@ -38,6 +80,9 @@ declare global {
  * Production-ready Claude API service with comprehensive error handling
  */
 export class ClaudeAPIService {
+  private static readonly DEFAULT_MAX_RETRIES = 3;
+  private static readonly DEFAULT_API_TIMEOUT = 30_000;
+
   private anthropic: Anthropic | null = null;
   private fallbackToWindowClaude = false;
 
@@ -48,12 +93,26 @@ export class ClaudeAPIService {
   private initializeAPI(): void {
     const apiKey = process.env['ANTHROPIC_API_KEY'];
 
+ copilot/fix-de6054fd-2fa5-455a-9ae6-5deafea88d4d
     if (apiKey) {
+
+    // Never bundle the Claude API key in client-side code. Only instantiate the SDK
+    // when running on the server.
+    const isBrowser = typeof window !== 'undefined';
+
+    if (apiKey && !isBrowser) {
+      // Server-side execution – safe to create the SDK client.
+ main
       this.anthropic = new Anthropic({
         apiKey,
         dangerouslyAllowBrowser: process.env['NEXT_PUBLIC_ALLOW_BROWSER'] === 'true', // Controlled via environment variable
       });
+ copilot/fix-de6054fd-2fa5-455a-9ae6-5deafea88d4d
     } else if (typeof window !== 'undefined' && window.claude) {
+
+    } else if (isBrowser && 'claude' in window) {
+      // Client-side fallback (e.g. window.claude injected for demos).
+ main
       this.fallbackToWindowClaude = true;
     } else {
       console.warn('No Claude API configuration found. Falling back to heuristic analysis.');
@@ -64,8 +123,38 @@ export class ClaudeAPIService {
    * Send a request to Claude API with retry logic
    */
   private async sendRequest(request: ClaudeAPIRequest): Promise<string> {
-    const maxRetries = parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10);
-    const timeout = parseInt(process.env['NEXT_PUBLIC_API_TIMEOUT'] || '30000', 10);
+    // Robust parsing of numeric env vars – fall back to sane defaults when the
+    // variable is missing **or** not a valid positive number.
+    const envRetriesRaw = process.env['NEXT_PUBLIC_MAX_RETRIES'];
+    const envTimeoutRaw = process.env['NEXT_PUBLIC_API_TIMEOUT'];
+    const envRetries = Number(envRetriesRaw);
+    const envTimeout = Number(envTimeoutRaw);
+
+    let maxRetries: number;
+    if (envRetriesRaw !== undefined && (!Number.isFinite(envRetries) || envRetries <= 0)) {
+      console.warn(
+        `[claudeApiService] Invalid NEXT_PUBLIC_MAX_RETRIES value "${envRetriesRaw}" – using default ${ClaudeAPIService.DEFAULT_MAX_RETRIES}`
+      );
+      maxRetries = ClaudeAPIService.DEFAULT_MAX_RETRIES;
+    } else {
+      maxRetries =
+        Number.isFinite(envRetries) && envRetries > 0
+          ? envRetries
+          : ClaudeAPIService.DEFAULT_MAX_RETRIES;
+    }
+
+    let timeout: number;
+    if (envTimeoutRaw !== undefined && (!Number.isFinite(envTimeout) || envTimeout <= 0)) {
+      console.warn(
+        `[claudeApiService] Invalid NEXT_PUBLIC_API_TIMEOUT value "${envTimeoutRaw}" – using default ${ClaudeAPIService.DEFAULT_API_TIMEOUT}`
+      );
+      timeout = ClaudeAPIService.DEFAULT_API_TIMEOUT;
+    } else {
+      timeout =
+        Number.isFinite(envTimeout) && envTimeout > 0
+          ? envTimeout
+          : ClaudeAPIService.DEFAULT_API_TIMEOUT;
+    }
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -92,7 +181,11 @@ export class ClaudeAPIService {
             return response.content[0].text;
           }
           throw new Error('Invalid response format');
+ copilot/fix-de6054fd-2fa5-455a-9ae6-5deafea88d4d
         } else if (this.fallbackToWindowClaude && typeof window !== 'undefined' && window.claude) {
+
+        } else if (this.fallbackToWindowClaude && window.claude) {
+ main
           // Use window.claude for artifacts
           const response = await Promise.race([
             window.claude.complete(request.prompt),
@@ -191,6 +284,7 @@ CRITICAL: Return ONLY the JSON array. No markdown, no explanations, no additiona
           .trim()
           .replace(/^```json\s*/, '')
           .replace(/\s*```$/, '');
+ copilot/fix-de6054fd-2fa5-455a-9ae6-5deafea88d4d
         const parsed = JSON.parse(cleanedResponse) as unknown;
 
         if (!Array.isArray(parsed)) {
@@ -201,6 +295,12 @@ CRITICAL: Return ONLY the JSON array. No markdown, no explanations, no additiona
       } catch (parseError) {
         console.error('JSON parsing failed:', parseError);
         console.warn('Raw response:', response);
+
+        analyses = JSON.parse(cleanedResponse) as ClaudeAnalysisResponse[];
+      } catch (parseError) {
+        console.error('JSON parsing failed:', parseError);
+        console.error('Raw response:', response);
+ main
         throw new Error('Invalid JSON response from Claude API');
       }
 
@@ -302,6 +402,7 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
           .trim()
           .replace(/^```json\s*/, '')
           .replace(/\s*```$/, '');
+ copilot/fix-de6054fd-2fa5-455a-9ae6-5deafea88d4d
         const parsed = JSON.parse(cleanedResponse) as unknown;
 
         if (!Array.isArray(parsed)) {
@@ -309,13 +410,19 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
         }
 
         analyses = parsed as ClaudeReviewerResponse[];
+
+        analyses = JSON.parse(cleanedResponse) as ClaudeReviewerResponse[];
+ main
       } catch (parseError) {
         console.error('JSON parsing failed for reviewer alignment:', parseError);
         throw new Error('Invalid JSON response from Claude API');
       }
 
       return analyses
+ copilot/fix-de6054fd-2fa5-455a-9ae6-5deafea88d4d
         .filter((analysis) => (analysis.alignmentScore || 0) > 25) // Filter low-relevance items
+
+        .filter((analysis) => analysis.alignmentScore > 25) // Filter low-relevance items main
         .map((analysis, index) => {
           const diffItem = diffs.find((d) => d.id === analysis.diffId);
 
