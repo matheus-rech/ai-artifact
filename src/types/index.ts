@@ -113,12 +113,13 @@ export interface AppConfig {
   maxRetries: number;
   maxTextLength: number;
   minDiffLength: number;
+  useDiffMatchPatch: boolean;
 }
 
 // Manuscript section types
-export type ManuscriptSection = 
+export type ManuscriptSection =
   | 'Abstract'
-  | 'Introduction' 
+  | 'Introduction'
   | 'Literature Review'
   | 'Methods'
   | 'Methodology'
