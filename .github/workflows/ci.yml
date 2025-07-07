@@ -42,15 +42,27 @@ jobs:
       - name: Build application
         run: npm run build
 
-      # Temporarily skip Playwright tests as they're failing in CI
-      # - name: Install Playwright Browsers
-      #   run: npx playwright install --with-deps
 
-      # - name: Run Playwright tests
-      #   run: npm run test:e2e
-      #   env:
-      #     NEXT_PUBLIC_USE_CLAUDE_API: false
-      #     NEXT_PUBLIC_AGENT_MODE: heuristic
+      # Temporarily skip Playwright tests as they're failing in CI
+       - name: Install Playwright Browsers
+         run: npx playwright install --with-deps
+
+       - name: Run Playwright tests
+         run: npm run test:e2e
+         env:
+           NEXT_PUBLIC_USE_CLAUDE_API: false
+          NEXT_PUBLIC_AGENT_MODE: heuristic
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        run: npm run test:e2e
+        env:
+          CI: true
+          ANTHROPIC_API_KEY: dummy-key-for-testing
+          NEXT_PUBLIC_USE_CLAUDE_API: false
+          NEXT_PUBLIC_AGENT_MODE: heuristic
+ main
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -61,6 +73,7 @@ jobs:
             coverage/
             playwright-report/
             test-results/
+          if-no-files-found: ignore
 
   security:
     runs-on: ubuntu-latest
@@ -77,8 +90,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run security audit
+      - name: Run security audit (high)
         run: npm audit --audit-level high
+        continue-on-error: true
 
-      - name: Check for vulnerabilities
+      - name: Run security audit (moderate)
         run: npm audit --audit-level moderate
