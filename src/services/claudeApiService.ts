@@ -10,36 +10,6 @@ declare const process: {
   env: ProcessEnv;
 };
 
-interface WindowClaude {
-  complete(prompt: string): Promise<string>;
-}
-
-interface ClaudeAnalysisResponse {
-  diffId: string;
-  section: string;
-  priority: string;
-  assessment: string;
-  comment: string;
-  reviewerPoint: string;
-  confidence: number;
-}
-
-interface ClaudeReviewerResponse {
-  diffId: string;
-  alignmentScore: number;
-  section: string;
-  priority: string;
-  assessment: string;
-  reviewerPoint: string;
-  comment: string;
-  confidence: number;
-}
-
-declare global {
-  interface Window {
-    claude?: WindowClaude;
-  }
-}
 import Anthropic from '@anthropic-ai/sdk';
 import type {
   DiffItem,
@@ -51,7 +21,6 @@ import type {
 } from '@/types';
 import { generateId } from '@/utils';
 
-// Type definitions for Claude API responses
 interface ClaudeAnalysisResponse {
   diffId: string;
   section: string;
@@ -91,38 +60,24 @@ export class ClaudeAPIService {
   }
 
   private initializeAPI(): void {
- devin/1751838409-production-security-fixes
-    if (typeof window !== 'undefined' && 'claude' in window) {
-
     const apiKey = process.env['ANTHROPIC_API_KEY'];
-
-    // Never bundle the Claude API key in client-side code. Only instantiate the SDK
-    // when running on the server.
     const isBrowser = typeof window !== 'undefined';
 
     if (apiKey && !isBrowser) {
       // Server-side execution – safe to create the SDK client.
-      this.anthropic = new Anthropic({
-        apiKey,
-        dangerouslyAllowBrowser: process.env['NEXT_PUBLIC_ALLOW_BROWSER'] === 'true', // Controlled via environment variable
-      });
-    } else if (isBrowser && 'claude' in window) {
+      this.anthropic = new Anthropic({ apiKey });
+    } else if (isBrowser && typeof window !== 'undefined' && window.claude) {
       // Client-side fallback (e.g. window.claude injected for demos).
- main
       this.fallbackToWindowClaude = true;
     } else {
       console.warn('No Claude API configuration found. Falling back to heuristic analysis.');
     }
-    
-    this.anthropic = {} as Anthropic;
   }
 
   /**
    * Send a request to Claude API with retry logic
    */
   private async sendRequest(request: ClaudeAPIRequest): Promise<string> {
-    // Robust parsing of numeric env vars – fall back to sane defaults when the
-    // variable is missing **or** not a valid positive number.
     const envRetriesRaw = process.env['NEXT_PUBLIC_MAX_RETRIES'];
     const envTimeoutRaw = process.env['NEXT_PUBLIC_API_TIMEOUT'];
     const envRetries = Number(envRetriesRaw);
@@ -156,9 +111,21 @@ export class ClaudeAPIService {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        if (this.anthropic) {
- devin/1751838409-production-security-fixes
-          // Use our secure backend API endpoint instead of direct Anthropic SDK
+        if (this.anthropic && typeof window === 'undefined') {
+          // Use Anthropic SDK on the server
+          // Note: The actual SDK call should be implemented here if you want to call Anthropic directly server-side.
+          throw new Error('Direct Anthropic SDK calls not implemented in this method. Use a backend endpoint instead.');
+        } else if (this.fallbackToWindowClaude && typeof window !== 'undefined' && window.claude) {
+          // Use window.claude in the browser (for demos)
+          const response = await Promise.race([
+            window.claude.complete(request.prompt),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Request timeout')), timeout)
+            ),
+          ]);
+          return response;
+        } else if (typeof window !== 'undefined') {
+          // In browser, call the backend API endpoint
           const response = await fetch('/api/claude', {
             method: 'POST',
             headers: {
@@ -174,41 +141,6 @@ export class ClaudeAPIService {
 
           const data = await response.json();
           return data.content;
-        } else if (this.fallbackToWindowClaude) {
-
-          // Use Anthropic SDK
-          const response = await Promise.race([
-            this.anthropic.messages.create({
-              model: 'claude-3-7-sonnet-20250219',
-              max_tokens: request.maxTokens || 4000,
-              temperature: request.temperature || 0.3,
-              messages: [
-                {
-                  role: 'user',
-                  content: request.prompt,
-                },
-              ],
-            }),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Request timeout')), timeout)
-            ),
-          ]);
-
-          if (response.content[0]?.type === 'text') {
-            return response.content[0].text;
-          }
-          throw new Error('Invalid response format');
-        } else if (this.fallbackToWindowClaude && window.claude) {
- main
-          // Use window.claude for artifacts
-          const response = await Promise.race([
-            window.claude.complete(request.prompt),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Request timeout')), timeout)
-            ),
-          ]);
-
-          return response;
         } else {
           throw new Error('Claude API not available');
         }
@@ -217,7 +149,9 @@ export class ClaudeAPIService {
 
         if (attempt === maxRetries) {
           throw new Error(
-            `Claude API failed after ${maxRetries} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`
+            `Claude API failed after ${maxRetries} attempts: ${
+              error instanceof Error ? error.message : 'Unknown error'
+            }`
           );
         }
 
@@ -298,18 +232,11 @@ CRITICAL: Return ONLY the JSON array. No markdown, no explanations, no additiona
           .trim()
           .replace(/^```json\s*/, '')
           .replace(/\s*```$/, '');
-
-
-        analyses = JSON.parse(cleanedResponse) as ClaudeAnalysisResponse[];
-
         const parsed = JSON.parse(cleanedResponse) as unknown;
-
         if (!Array.isArray(parsed)) {
           throw new Error('Expected array response from Claude API');
         }
-
         analyses = parsed as ClaudeAnalysisResponse[];
- main
       } catch (parseError) {
         console.error('JSON parsing failed:', parseError);
         console.error('Raw response:', response);
@@ -319,7 +246,6 @@ CRITICAL: Return ONLY the JSON array. No markdown, no explanations, no additiona
       // Validate and enhance each analysis
       return analyses.map((analysis, index) => {
         const diffItem = diffs.find((d) => d.id === analysis.diffId) || diffs[index];
-
         return {
           analysisId: generateId('claude-seg'),
           diffId: analysis.diffId || diffItem?.id || `unknown-${index}`,
@@ -414,18 +340,11 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
           .trim()
           .replace(/^```json\s*/, '')
           .replace(/\s*```$/, '');
- copilot/fix-fc6013a0-f0af-4bf8-8e3a-7743fb843179
-
-        analyses = JSON.parse(cleanedResponse) as ClaudeReviewerResponse[];
-
         const parsed = JSON.parse(cleanedResponse) as unknown;
-
         if (!Array.isArray(parsed)) {
           throw new Error('Expected array response from Claude API');
         }
-
         analyses = parsed as ClaudeReviewerResponse[];
- main
       } catch (parseError) {
         console.error('JSON parsing failed for reviewer alignment:', parseError);
         throw new Error('Invalid JSON response from Claude API');
@@ -435,7 +354,6 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
         .filter((analysis) => analysis.alignmentScore > 25) // Filter low-relevance items
         .map((analysis, index) => {
           const diffItem = diffs.find((d) => d.id === analysis.diffId);
-
           return {
             analysisId: generateId('claude-rev'),
             diffId: analysis.diffId || `rev-${index}`,
