@@ -36,6 +36,9 @@ export class ClaudeAPIService {
       // Server-side execution – safe to create the SDK client.
       this.anthropic = new Anthropic({
         apiKey,
+ cursor/fix-three-bugs-in-the-codebase-3ac1
+=======
+        dangerouslyAllowBrowser: process.env['NEXT_PUBLIC_ALLOW_BROWSER'] === 'true', // Controlled via environment variable main
       });
     } else if (isBrowser && 'claude' in window) {
       // Client-side fallback (e.g. window.claude injected for demos).
