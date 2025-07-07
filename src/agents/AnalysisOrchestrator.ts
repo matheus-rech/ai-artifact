@@ -11,11 +11,6 @@ import type {
   ReviewerAlignmentOutput,
 } from './base/AgentTypes';
 
-import type { AgentConfig, DiffItem, OverallAnalysis, AgentStatus, AgentResult } from '@/types';
-import { DEFAULT_AGENT_CONFIGS } from './base/AgentTypes';
-import type { AgentType, DiffSegmentationOutput, ReviewerAlignmentOutput } from './base/AgentTypes';
- main
-
 type AgentInput = DiffSegmentationInput | ReviewerAlignmentInput;
 type AgentOutput = DiffSegmentationOutput | ReviewerAlignmentOutput;
 
@@ -23,18 +18,9 @@ type AgentOutput = DiffSegmentationOutput | ReviewerAlignmentOutput;
  * Orchestrates multiple AI agents for comprehensive manuscript analysis
  */
 export class AnalysisOrchestrator {
- devin/1751831368-production-fixes
   private agents: Map<AgentType, BaseAgent<AgentInput, AgentOutput>> = new Map();
   private agentStatuses: Map<AgentType, AgentStatus> = new Map();
   private executionResults: Map<AgentType, AgentResult<AgentOutput>> = new Map();
-
-  private agents: Map<AgentType, DiffSegmentationAgent | ReviewerAlignmentAgent> = new Map();
-  private agentStatuses: Map<AgentType, AgentStatus> = new Map();
-  private executionResults: Map<
-    AgentType,
-    AgentResult<DiffSegmentationOutput | ReviewerAlignmentOutput>
-  > = new Map();
- main
 
   constructor(configs?: Partial<Record<AgentType, AgentConfig>>) {
     this.initializeAgents(configs);
@@ -129,10 +115,7 @@ export class AnalysisOrchestrator {
         executionSummary,
       };
     } catch (error) {
- devin/1751831368-production-fixes
-
       console.error('Comprehensive analysis failed:', error);
- main
       throw new Error(
         `Analysis orchestration failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -142,15 +125,9 @@ export class AnalysisOrchestrator {
   /**
    * Run a specific agent
    */
- devin/1751831368-production-fixes
   async runAgent<T extends AgentOutput>(
     agentType: AgentType,
     input: AgentInput
-
-  async runAgent<T = DiffSegmentationOutput | ReviewerAlignmentOutput>(
-    agentType: AgentType,
-    input: unknown
- main
   ): Promise<AgentResult<T>> {
     const agent = this.agents.get(agentType);
     if (!agent) {
@@ -194,11 +171,7 @@ export class AnalysisOrchestrator {
 
       const errorResult: AgentResult<T> = {
         success: false,
- devin/1751831368-production-fixes
         data: emptyData,
-
-        data: undefined as any,
- main
         error: error instanceof Error ? error.message : 'Unknown error',
         executionTime: 0,
         usedFallback: false,
@@ -256,29 +229,12 @@ export class AnalysisOrchestrator {
   /**
    * Get execution results for all agents
    */
- devin/1751831368-production-fixes
   getExecutionResults(): Record<AgentType, AgentResult<AgentOutput> | undefined> {
     const results: Partial<Record<AgentType, AgentResult<AgentOutput>>> = {};
     this.executionResults.forEach((result, type) => {
       results[type] = result;
     });
     return results as Record<AgentType, AgentResult<AgentOutput> | undefined>;
-
-  getExecutionResults(): Record<
-    AgentType,
-    AgentResult<DiffSegmentationOutput | ReviewerAlignmentOutput> | undefined
-  > {
-    const results: Partial<
-      Record<AgentType, AgentResult<DiffSegmentationOutput | ReviewerAlignmentOutput>>
-    > = {};
-    this.executionResults.forEach((result, type) => {
-      results[type] = result;
-    });
-    return results as Record<
-      AgentType,
-      AgentResult<DiffSegmentationOutput | ReviewerAlignmentOutput> | undefined
-    >;
- main
   }
 
   /**

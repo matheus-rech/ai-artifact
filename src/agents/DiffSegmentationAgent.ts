@@ -11,10 +11,6 @@ export class DiffSegmentationAgent extends BaseAgent<
   DiffSegmentationInput,
   DiffSegmentationOutput
 > {
- devin/1751831368-production-fixes
-]
-  private claudeAPI: ClaudeAPIService;
- main
   private fallbackService: FallbackService;
 
   constructor(config: AgentConfig) {
@@ -25,7 +21,6 @@ export class DiffSegmentationAgent extends BaseAgent<
   protected async analyze(input: DiffSegmentationInput): Promise<DiffSegmentationOutput> {
     this.updateStatus('running', 30, 'Analyzing diff segments...');
 
- devin/1751831368-production-fixes
     // Use secure API endpoint for intelligent analysis
     const result = await apiClient.analyzeSegmentation(input.diffs);
 
@@ -33,19 +28,11 @@ export class DiffSegmentationAgent extends BaseAgent<
       throw new Error(result.error || 'Segmentation analysis failed');
     }
 
-    // Use Claude API for intelligent analysis
-    const analyses = await this.claudeAPI.analyzeDiffSegmentation(input.diffs);
- main
-
     this.updateStatus('running', 60, 'Creating summary...');
     const summary = this.createSummary(result.data.analyses);
 
     return {
- devin/1751831368-production-fixes
       analyses: result.data.analyses,
-
-      analyses,
- main
       summary,
     };
   }

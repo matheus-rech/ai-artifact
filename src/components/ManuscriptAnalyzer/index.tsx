@@ -33,18 +33,7 @@ const ManuscriptAnalyzer: React.FC = () => {
     maxRetries: parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10),
     maxTextLength: 1000000,
     minDiffLength: 3,
- devin/1751831368-production-fixes
-
- devin/1751849069-add-diff-engine-toggle
     useDiffMatchPatch: false
-
-
-    useDiffMatchPatch: false
-
-    useDiffMatchPatch: true
- main
- main
- main
   });
 
   // Custom hooks
@@ -196,7 +185,7 @@ const ManuscriptAnalyzer: React.FC = () => {
                   </select>
                 </div>
 
-                <AdvancedSettings config={config} updateConfig={updateConfig} />
+                <AdvancedSettings config={config} onConfigChange={updateConfig} />
 
                 {/* Analysis Metrics */}
                 {multiAgentAnalysis.analysisMetrics.diffCount > 0 && (

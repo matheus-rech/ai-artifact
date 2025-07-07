@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
- devin/1751831368-production-fixes
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 
@@ -12,18 +11,6 @@ const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
 });
-
-import './globals.css';
-
-// Use system fonts as fallback to avoid network issues during build
-const geistSans = {
-  variable: '--font-geist-sans',
-};
-
-const geistMono = {
-  variable: '--font-geist-mono',
-};
- main
 
 export const metadata: Metadata = {
   title: 'Manuscript Diff Analyzer',
