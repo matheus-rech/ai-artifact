@@ -90,6 +90,46 @@ export class ClaudeAPIService {
     this.initializeAPI();
   }
 
+  /**
+   * Private helper method for HTTP POST requests with robust error handling
+   * Handles both JSON and non-JSON error responses gracefully
+   * This demonstrates the pattern requested in the requirements
+   */
+  private async _postRequest(
+    endpoint: string,
+    payload: object,
+    logMessage: string,
+    errorMessage: string
+  ): Promise<AnalysisItem[]> {
+    try {
+      console.log(logMessage);
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        // Handles both JSON and non-JSON error responses gracefully
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Validate that the response is an array as expected for AnalysisItem[]
+      if (!Array.isArray(data)) {
+        throw new Error('Expected array response from API');
+      }
+
+      return data;
+    } catch (error) {
+      console.error(errorMessage, error);
+      throw error; // Optionally, log or handle timeout/AbortError differently
+    }
+  }
+
   private initializeAPI(): void {
     const apiKey = process.env['ANTHROPIC_API_KEY'];
 
@@ -476,5 +516,25 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
     } else {
       return { available: false, method: 'None' };
     }
+  }
+
+  /**
+   * Example method demonstrating the use of _postRequest helper
+   * This could be used for external API integrations or fallback services
+   */
+  async analyzeWithExternalAPI(
+    diffs: DiffItem[],
+    endpoint: string = '/api/external-analysis'
+  ): Promise<AnalysisItem[]> {
+    if (!endpoint.startsWith('http')) {
+      throw new Error('External API endpoint must be a full URL');
+    }
+
+    return this._postRequest(
+      endpoint,
+      { diffs, service: 'claude-fallback' },
+      'Sending analysis request to external API...',
+      'External API analysis failed:'
+    );
   }
 }

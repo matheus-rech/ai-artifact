@@ -1,5 +1,10 @@
 name: Claude PR Assistant
 
+permissions:
+  contents: read
+  id-token: write
+  actions: read
+
 on:
   issue_comment:
     types: [created]
