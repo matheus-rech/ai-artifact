@@ -1,11 +1,13 @@
 import React from 'react';
 import { CheckCircle, AlertCircle, Clock, RefreshCw, Settings } from 'lucide-react';
-import type { AgentStatus, AnalysisMetrics } from '@/types';
+import type { AnalysisMetrics } from '@/types';
 import type { AgentType } from '@/agents/base/AgentTypes';
 import { cn } from '@/utils';
 
+type AgentStatusValue = 'idle' | 'executing' | 'completed' | 'error';
+
 interface AgentStatusIndicatorProps {
-  statuses: Record<AgentType, AgentStatus>;
+  statuses: Record<AgentType, AgentStatusValue>;
   isAnalyzing: boolean;
   metrics: AnalysisMetrics;
 }
@@ -15,13 +17,13 @@ export const AgentStatusIndicator: React.FC<AgentStatusIndicatorProps> = ({
   isAnalyzing,
   metrics,
 }) => {
-  const getStatusIcon = (status: AgentStatus['status']): React.ReactNode => {
+  const getStatusIcon = (status: AgentStatusValue): React.ReactNode => {
     switch (status) {
       case 'completed':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
       case 'error':
         return <AlertCircle className="h-4 w-4 text-red-500" />;
-      case 'running':
+      case 'executing':
         return <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />;
       case 'idle':
       default:
@@ -29,13 +31,13 @@ export const AgentStatusIndicator: React.FC<AgentStatusIndicatorProps> = ({
     }
   };
 
-  const getStatusColor = (status: AgentStatus['status']): string => {
+  const getStatusColor = (status: AgentStatusValue): string => {
     switch (status) {
       case 'completed':
         return 'text-green-700 bg-green-100';
       case 'error':
         return 'text-red-700 bg-red-100';
-      case 'running':
+      case 'executing':
         return 'text-blue-700 bg-blue-100';
       case 'idle':
       default:
@@ -58,7 +60,7 @@ export const AgentStatusIndicator: React.FC<AgentStatusIndicatorProps> = ({
     }
   };
 
-  const agentEntries = Object.entries(statuses) as [AgentType, AgentStatus][];
+  const agentEntries = Object.entries(statuses) as [AgentType, AgentStatusValue][];
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -83,29 +85,27 @@ export const AgentStatusIndicator: React.FC<AgentStatusIndicatorProps> = ({
               <span className="text-sm font-medium text-gray-900">
                 {getAgentDisplayName(agentType)}
               </span>
-              {getStatusIcon(status.status)}
+              {getStatusIcon(status)}
             </div>
 
             <div className="space-y-2">
               <div
                 className={cn(
                   'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium',
-                  getStatusColor(status.status)
+                  getStatusColor(status)
                 )}
               >
-                {status.status.charAt(0).toUpperCase() + status.status.slice(1)}
+                {status.charAt(0).toUpperCase() + status.slice(1)}
               </div>
 
-              {status.progress !== undefined && status.status === 'running' && (
+              {status === 'executing' && (
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${status.progress}%` }}
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300 animate-pulse"
+                    style={{ width: '60%' }}
                   />
                 </div>
               )}
-
-              {status.message && <p className="text-xs text-gray-600 mt-1">{status.message}</p>}
             </div>
           </div>
         ))}
@@ -151,7 +151,7 @@ export const AgentStatusIndicator: React.FC<AgentStatusIndicatorProps> = ({
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600">
               Agent Coordination:{' '}
-              {agentEntries.filter(([, status]) => status.status === 'completed').length} /{' '}
+              {agentEntries.filter(([, status]) => status === 'completed').length} /{' '}
               {agentEntries.length} completed
             </span>
 
@@ -167,7 +167,7 @@ export const AgentStatusIndicator: React.FC<AgentStatusIndicatorProps> = ({
             <div
               className="bg-blue-600 h-2 rounded-full transition-all duration-500"
               style={{
-                width: `${(agentEntries.filter(([, status]) => status.status === 'completed').length / agentEntries.length) * 100}%`,
+                width: `${(agentEntries.filter(([, status]) => status === 'completed').length / agentEntries.length) * 100}%`,
               }}
             />
           </div>

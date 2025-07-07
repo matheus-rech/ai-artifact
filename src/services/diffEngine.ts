@@ -254,6 +254,17 @@ export class DiffEngine {
   }
 
   /**
+   * Compute diffs with specified options (unified interface)
+   */
+  computeDiffs(original: string, revised: string, options: { granularity: string; minDiffLength: number }): Promise<DiffItem[]> {
+    return Promise.resolve(
+      options.granularity === 'word'
+        ? this.generateWordDiffs(original, revised)
+        : this.generateSentenceDiffs(original, revised)
+    );
+  }
+
+  /**
    * Validate input text before processing
    */
   validateInput(text: string): ValidationResult {
