@@ -1,4 +1,8 @@
-import React, { Component, type ReactNode } from 'react';
+ devin/1751849069-add-diff-engine-toggle
+import React, { Component, type ReactNode } from 'react';=======
+import React, { Component } from 'react';
+import type { ReactNode } from 'react';
+ main
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface ErrorBoundaryState {
@@ -19,23 +23,23 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     this.state = {
       hasError: false,
       error: null,
-      errorInfo: null
+      errorInfo: null,
     };
   }
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return {
       hasError: true,
-      error
+      error,
     };
   }
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
-    
+
     this.setState({
       error,
-      errorInfo
+      errorInfo,
     });
 
     // Call the onError callback if provided
@@ -53,7 +57,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     this.setState({
       hasError: false,
       error: null,
-      errorInfo: null
+      errorInfo: null,
     });
   };
 
@@ -71,14 +75,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 rounded-full">
               <AlertTriangle className="h-6 w-6 text-red-600" />
             </div>
-            
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              Something went wrong
-            </h2>
-            
+
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Something went wrong</h2>
+
             <p className="text-gray-600 mb-4">
-              An unexpected error occurred while rendering the application. 
-              Please try refreshing the page or contact support if the problem persists.
+              An unexpected error occurred while rendering the application. Please try refreshing
+              the page or contact support if the problem persists.
             </p>
 
             {process.env.NODE_ENV === 'development' && this.state.error && (
@@ -90,9 +92,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                   <div className="font-semibold text-red-600 mb-2">
                     {this.state.error.name}: {this.state.error.message}
                   </div>
-                  <div className="whitespace-pre-wrap">
-                    {this.state.error.stack}
-                  </div>
+                  <div className="whitespace-pre-wrap">{this.state.error.stack}</div>
                   {this.state.errorInfo && (
                     <div className="mt-2 pt-2 border-t border-gray-300">
                       <div className="font-semibold mb-1">Component Stack:</div>
@@ -113,7 +113,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Try Again
               </button>
-              
+
               <button
                 onClick={() => window.location.reload()}
                 className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
@@ -122,9 +122,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               </button>
             </div>
 
-            <div className="mt-4 text-xs text-gray-500">
-              Error ID: {Date.now().toString(36)}
-            </div>
+            <div className="mt-4 text-xs text-gray-500">Error ID: {Date.now().toString(36)}</div>
           </div>
         </div>
       );

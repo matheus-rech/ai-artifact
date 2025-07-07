@@ -1,20 +1,19 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from 'next';
+import './globals.css';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+// Use system fonts as fallback to avoid network issues during build
+const geistSans = {
+  variable: '--font-geist-sans',
+};
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const geistMono = {
+  variable: '--font-geist-mono',
+};
 
 export const metadata: Metadata = {
-  title: "Manuscript Diff Analyzer",
-  description: "Multi-agent AI-powered academic manuscript analysis tool for tracking and analyzing changes between manuscript versions",
+  title: 'Manuscript Diff Analyzer',
+  description:
+    'Multi-agent AI-powered academic manuscript analysis tool for tracking and analyzing changes between manuscript versions',
 };
 
 export default function RootLayout({
@@ -24,11 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>{children}</body>
     </html>
   );
 }

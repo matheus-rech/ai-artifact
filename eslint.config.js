@@ -42,6 +42,7 @@ export default [
           varsIgnorePattern: '^_',
         },
       ],
+ devin/1751849069-add-diff-engine-toggle
       '@typescript-eslint/consistent-type-imports': [
         'error',
         {
@@ -60,6 +61,24 @@ export default [
           allowTypedFunctionExpressions: true,
         },
       ],
+
+      '@typescript-eslint/consistent-type-imports': 'warn',
+      // Allow any in specific cases where type inference is complex
+      '@typescript-eslint/no-explicit-any': 'warn',
+      // Keep unsafe rules relaxed for external APIs and complex integrations
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      // Warn about async functions without await
+      '@typescript-eslint/require-await': 'warn',
+      // Keep function return types optional for now to avoid massive changes
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/no-misused-promises': 'warn',
+      'react/no-unescaped-entities': 'off',
+      // Allow console but warn about it
+ main
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
