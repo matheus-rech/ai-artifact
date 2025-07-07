@@ -35,9 +35,9 @@ function calculateAccuracy(diffs: DiffItem[]): number {
   if (diffs.length === 0) return 0;
   
   const avgConfidence = diffs.reduce((sum, diff) => sum + (diff.confidence || 0), 0) / diffs.length;
-  const contextQuality = diffs.filter(diff => diff.context && diff.context.length > 0).length / diffs.length;
+  // Removed contextQuality calculation as context is always empty for DiffMatchPatchEngine
   
-  return (avgConfidence * 0.7) + (contextQuality * 0.3);
+  return avgConfidence;
 }
 
 /**
