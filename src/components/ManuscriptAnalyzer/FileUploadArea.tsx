@@ -19,20 +19,22 @@ export const FileUploadArea: React.FC<FileUploadAreaProps> = ({
   value,
   errors,
   warnings,
-  placeholder
+  placeholder,
 }) => {
   const hasErrors = errors.length > 0;
   const hasWarnings = warnings.length > 0;
 
   return (
-    <div className={cn(
-      "border-2 border-dashed rounded-lg p-6 text-center transition-colors",
-      hasErrors 
-        ? "border-red-300 bg-red-50" 
-        : hasContent 
-          ? "border-green-300 bg-green-50" 
-          : "border-gray-300 hover:border-gray-400"
-    )}>
+    <div
+      className={cn(
+        'border-2 border-dashed rounded-lg p-6 text-center transition-colors',
+        hasErrors
+          ? 'border-red-300 bg-red-50'
+          : hasContent
+            ? 'border-green-300 bg-green-50'
+            : 'border-gray-300 hover:border-gray-400'
+      )}
+    >
       <div className="flex flex-col items-center space-y-2">
         {/* Status Icon */}
         {hasErrors ? (
@@ -48,21 +50,20 @@ export const FileUploadArea: React.FC<FileUploadAreaProps> = ({
 
         {/* Status Message */}
         <p className="text-sm text-gray-500">
-          {hasErrors 
-            ? "Please fix errors below" 
-            : hasContent 
-              ? "Document loaded successfully" 
-              : "Click to upload or paste text"
-          }
+          {hasErrors
+            ? 'Please fix errors below'
+            : hasContent
+              ? 'Document loaded successfully'
+              : 'Click to upload or paste text'}
         </p>
 
         {/* Text Area */}
         <textarea
           className={cn(
-            "w-full h-32 p-3 border rounded-md resize-none transition-colors",
-            hasErrors 
-              ? "border-red-300 focus:border-red-500 focus:ring-red-500" 
-              : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+            'w-full h-32 p-3 border rounded-md resize-none transition-colors',
+            hasErrors
+              ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
+              : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
           )}
           placeholder={placeholder || `Paste ${label.toLowerCase()} text here...`}
           value={value}
