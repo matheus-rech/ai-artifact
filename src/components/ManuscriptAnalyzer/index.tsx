@@ -33,10 +33,7 @@ const ManuscriptAnalyzer: React.FC = () => {
     maxRetries: parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10),
     maxTextLength: 1000000,
     minDiffLength: 3,
- devin/1751855402-toggle-diff-engine
     useDiffMatchPatch: true
-
- main
   });
 
   // Custom hooks

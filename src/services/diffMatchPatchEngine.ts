@@ -2,7 +2,7 @@ import { diff_match_patch } from 'diff-match-patch';
 import type { DiffItem, ValidationResult } from '../types';
 
 export class DiffMatchPatchEngine {
-  private dmp: diff_match_patch;
+  private dmp: InstanceType<typeof diff_match_patch>;
   private static readonly MAX_TEXT_LENGTH = 1000000;
   private static readonly MIN_DIFF_LENGTH = 3;
 
@@ -71,7 +71,7 @@ export class DiffMatchPatchEngine {
       const confidence = this.calculateConfidence(text, type);
       
       switch (operation) {
-        case this.dmp.DIFF_DELETE:
+        case diff_match_patch.DIFF_DELETE:
           items.push({
             id: `${type}-del-${diffId++}`,
             text: text.trim(),
@@ -84,7 +84,7 @@ export class DiffMatchPatchEngine {
           originalPos += text.length;
           break;
           
-        case this.dmp.DIFF_INSERT:
+        case diff_match_patch.DIFF_INSERT:
           items.push({
             id: `${type}-add-${diffId++}`,
             text: text.trim(),
@@ -97,7 +97,7 @@ export class DiffMatchPatchEngine {
           revisedPos += text.length;
           break;
           
-        case this.dmp.DIFF_EQUAL:
+        case diff_match_patch.DIFF_EQUAL:
           originalPos += text.length;
           revisedPos += text.length;
           break;
