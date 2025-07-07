@@ -115,7 +115,6 @@ docker-compose up --build
 
 ### Security Features
 
- devin/1751831368-production-fixes
 ✅ **Secure API Architecture**: API keys are never exposed to the client-side  
 ✅ **Backend API Endpoints**: All AI processing happens server-side  
 ✅ **Input Validation**: Comprehensive request validation and sanitization  
@@ -130,7 +129,6 @@ This application uses a secure backend API endpoint to handle Anthropic API call
 2. Ensure `ANTHROPIC_API_KEY` is set as a server-side environment variable
 3. Configure client-side environment variables as needed (`NEXT_PUBLIC_*`)
 4. Deploy using the instructions below
- main
 
 ### Available Scripts
 

@@ -49,7 +49,6 @@ export function useDiffComputation(config: AppConfig): UseDiffComputationState &
       revised: string,
       granularity: DiffGranularity
     ): Promise<DiffItem[]> => {
- devin/1751845727-add-env-example
       if (state.isComputing) {
         throw new Error('Diff computation already in progress');
       }
@@ -61,7 +60,6 @@ export function useDiffComputation(config: AppConfig): UseDiffComputationState &
       // Mark as running before any work starts to avoid race conditions
       isComputingRef.current = true;
 
- main
       setState((prev) => ({
         ...prev,
         isComputing: true,
@@ -82,13 +80,9 @@ export function useDiffComputation(config: AppConfig): UseDiffComputationState &
         }
         
         if (!revisedValidation.isValid) {
-          throw new Error(`Revised text validation failed: ${revisedValidation.errors.join(', ')}`);
-
-        if (!revisedValidation.isValid) {
           throw new Error(
             `Revised text validation failed: ${revisedValidation.errors.join(', ')}`
           );
- main
         }
 
         // Compute diffs based on granularity
@@ -109,15 +103,11 @@ export function useDiffComputation(config: AppConfig): UseDiffComputationState &
           error: null,
         }));
 
- devin/1751845727-add-env-example
         console.log(
-
-        isComputingRef.current = false;
-
-        console.warn(
- main
           `Diff computation completed: ${diffs.length} changes in ${computationTime.toFixed(2)}ms`
         );
+
+        isComputingRef.current = false;
 
         return diffs;
       } catch (error) {
@@ -131,19 +121,11 @@ export function useDiffComputation(config: AppConfig): UseDiffComputationState &
           error: errorMessage,
         }));
 
- devin/1751845727-add-env-example
+        isComputingRef.current = false;
         throw error;
       }
     },
     [state.isComputing, diffEngine]
-
-        isComputingRef.current = false;
-
-        throw error;
-      }
-    },
-    [diffEngine]
- main
   );
 
   /**
@@ -185,11 +167,7 @@ export function useDiffComputation(config: AppConfig): UseDiffComputationState &
       // Check for significant size differences
       const sizeDifference = Math.abs(original.length - revised.length);
       const averageSize = (original.length + revised.length) / 2;
- devin/1751845727-add-env-example
-      if (sizeDifference / averageSize > 0.5) {
-
       if (averageSize > 0 && sizeDifference / averageSize > 0.5) {
- main
         warnings.push('Large difference in text sizes detected');
       }
 

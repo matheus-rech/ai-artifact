@@ -6,7 +6,7 @@ export async function runDiffEngineBenchmarks(): Promise<{
   results: BenchmarkResult[];
   report: string;
   recommendation: string;
- {
+}> {
   const benchmark = new PerformanceBenchmark();
   const diffEngine = new DiffEngine();
   const dmpEngine = new DiffMatchPatchEngine();
@@ -52,9 +52,6 @@ export async function runDiffEngineBenchmarks(): Promise<{
   return { results, report, recommendation };
 }
 
-const PERFORMANCE_THRESHOLD_MS = 50;
-const PERFORMANCE_RATIO_THRESHOLD = 0.8;
-const ACCURACY_DIFFERENCE_THRESHOLD = 0.05;
 function generateRecommendation(results: BenchmarkResult[]): string {
   const lcsResults = results.filter(r => r.engineName.startsWith('LCS'));
   const dmpResults = results.filter(r => r.engineName.startsWith('DMP'));
@@ -114,13 +111,6 @@ export async function runBenchmarksInConsole(): Promise<void> {
 }
 
 import type { DiffItem } from '../types';
-
-interface BenchmarkResult {
-  algorithm: string;
-  duration: number;
-  accuracy: number;
-  diffs: DiffItem[];
-}
 
 interface BenchmarkSuite {
   name: string;
@@ -194,10 +184,11 @@ export class BenchmarkRunner {
     const duration = endTime - startTime;
 
     return {
-      algorithm: 'word-level',
-      duration,
-      accuracy: this.calculateAccuracy(diffs, original, revised),
-      diffs
+      engineName: 'Custom LCS',
+      testCase: 'word-level',
+      executionTime: duration,
+      diffCount: diffs.length,
+      accuracy: this.calculateAccuracy(diffs, original, revised)
     };
   }
 
@@ -213,10 +204,11 @@ export class BenchmarkRunner {
     const duration = endTime - startTime;
 
     return {
-      algorithm: 'sentence-level',
-      duration,
-      accuracy: this.calculateAccuracy(diffs, original, revised),
-      diffs
+      engineName: 'Custom LCS',
+      testCase: 'sentence-level',
+      executionTime: duration,
+      diffCount: diffs.length,
+      accuracy: this.calculateAccuracy(diffs, original, revised)
     };
   }
 
@@ -243,10 +235,10 @@ export class BenchmarkRunner {
       report += '-'.repeat(suite.name.length + 12) + '\n';
 
       for (const result of suite.results) {
-        report += `  ${result.algorithm}:\n`;
-        report += `    Duration: ${result.duration.toFixed(2)}ms\n`;
-        report += `    Accuracy: ${(result.accuracy * 100).toFixed(1)}%\n`;
-        report += `    Diffs: ${result.diffs.length}\n\n`;
+        report += `  ${result.engineName}:\n`;
+        report += `    Duration: ${result.executionTime.toFixed(2)}ms\n`;
+        report += `    Accuracy: ${((result.accuracy || 0) * 100).toFixed(1)}%\n`;
+        report += `    Diffs: ${result.diffCount}\n\n`;
       }
     }
 
@@ -283,4 +275,3 @@ export async function runBenchmarks(): Promise<void> {
 
   console.warn(report);
 }
- main
