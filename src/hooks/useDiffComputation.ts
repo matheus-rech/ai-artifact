@@ -1,6 +1,8 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useContext } from 'react';
 import { DiffEngine } from '@/services/diffEngine';
-import type { DiffItem, ValidationResult, DiffGranularity } from '@/types';
+import { DiffMatchPatchEngine } from '@/services/diffMatchPatchEngine';
+import type { DiffItem, ValidationResult, DiffGranularity, AppConfig } from '@/types';
+import { ManuscriptAnalyzerContext } from '@/contexts/ManuscriptAnalyzerContext';
 
 interface UseDiffComputationState {
   diffs: DiffItem[];
@@ -30,8 +32,11 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
     error: null,
   });
 
-  // Memoized diff engine instance
+  const { config } = useContext(ManuscriptAnalyzerContext);
+
+  // Memoized diff engine instances
   const diffEngine = useMemo(() => new DiffEngine(), []);
+  const diffMatchPatchEngine = useMemo(() => new DiffMatchPatchEngine(), []);
 
   // Ref to track whether a diff computation is currently running.
   // Using a ref avoids issues with stale closures when `computeDiffs` is invoked
@@ -68,9 +73,11 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
       try {
         const startTime = performance.now();
 
+        const engine = config.useDiffMatchPatch ? diffMatchPatchEngine : diffEngine;
+
         // Validate inputs
-        const originalValidation = diffEngine.validateInput(original);
-        const revisedValidation = diffEngine.validateInput(revised);
+        const originalValidation = engine.validateInput(original);
+        const revisedValidation = engine.validateInput(revised);
 
         if (!originalValidation.isValid) {
           throw new Error(
@@ -85,8 +92,8 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
         // Compute diffs based on granularity (using Promise.resolve to make it async)
         const diffs: DiffItem[] = await Promise.resolve(
           granularity === 'word'
-            ? diffEngine.generateWordDiffs(original, revised)
-            : diffEngine.generateSentenceDiffs(original, revised)
+            ? engine.generateWordDiffs(original, revised)
+            : engine.generateSentenceDiffs(original, revised)
         );
 
         const computationTime = performance.now() - startTime;
@@ -126,7 +133,7 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
         throw error;
       }
     },
-    [diffEngine]
+    [config, diffEngine, diffMatchPatchEngine]
   );
 
   /**
@@ -153,13 +160,15 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
       const errors: string[] = [];
       const warnings: string[] = [];
 
+      const engine = config.useDiffMatchPatch ? diffMatchPatchEngine : diffEngine;
+
       // Validate original text
-      const originalValidation = diffEngine.validateInput(original);
+      const originalValidation = engine.validateInput(original);
       errors.push(...originalValidation.errors);
       warnings.push(...originalValidation.warnings);
 
       // Validate revised text
-      const revisedValidation = diffEngine.validateInput(revised);
+      const revisedValidation = engine.validateInput(revised);
       errors.push(...revisedValidation.errors);
       warnings.push(...revisedValidation.warnings);
 
@@ -181,7 +190,7 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
         warnings,
       };
     },
-    [diffEngine]
+    [config, diffEngine, diffMatchPatchEngine]
   );
 
   return {
