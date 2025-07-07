@@ -241,7 +241,7 @@ test.describe('Manuscript Diff Analyzer', () => {
     await page.locator('textarea').nth(0).fill(originalText);
     await page.locator('textarea').nth(1).fill(revisedText);
     
-    const diffEngineCheckbox = page.getByRole('checkbox').nth(1); // Second checkbox is for diff engine
+    const diffEngineCheckbox = page.getByRole('checkbox', { name: 'Diff Engine' }); // Targeting by accessible name
     await expect(diffEngineCheckbox).not.toBeChecked();
     await expect(page.getByText('Custom LCS Algorithm')).toBeVisible();
     
