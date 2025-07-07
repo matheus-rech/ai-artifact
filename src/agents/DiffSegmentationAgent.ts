@@ -11,6 +11,16 @@ export class DiffSegmentationAgent extends BaseAgent<
   DiffSegmentationInput,
   DiffSegmentationOutput
 > {
+ devin/1751828946-production-fixes
+
+ devin/1751845727-add-env-example
+
+ devin/1751831368-production-fixes
+]
+ main
+  private claudeAPI: ClaudeAPIService;
+ main
+ main
   private fallbackService: FallbackService;
 
   constructor(config: AgentConfig) {
@@ -28,11 +38,30 @@ export class DiffSegmentationAgent extends BaseAgent<
       throw new Error(result.error || 'Segmentation analysis failed');
     }
 
+ devin/1751828946-production-fixes
+
+    // Use Claude API for intelligent analysis
+    const analyses = await this.claudeAPI.analyzeDiffSegmentation(input.diffs);
+ devin/1751845727-add-env-example
+
+ main
+ main
+
+ main
     this.updateStatus('running', 60, 'Creating summary...');
     const summary = this.createSummary(result.data.analyses);
 
     return {
       analyses: result.data.analyses,
+ devin/1751828946-production-fixes
+
+
+      analyses,
+ devin/1751845727-add-env-example
+
+ main
+ main
+ main
       summary,
     };
   }

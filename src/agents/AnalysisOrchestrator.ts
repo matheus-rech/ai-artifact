@@ -1,5 +1,15 @@
 import { DiffSegmentationAgent } from './DiffSegmentationAgent';
 import { ReviewerAlignmentAgent } from './ReviewerAlignmentAgent';
+ devin/1751828946-production-fixes
+
+ devin/1751845727-add-env-example
+import type { AgentConfig, DiffItem, OverallAnalysis, AgentStatus, AgentResult } from '@/types';
+import { DEFAULT_AGENT_CONFIGS } from './base/AgentTypes';
+import type { AgentType, DiffSegmentationOutput, ReviewerAlignmentOutput } from './base/AgentTypes';
+
+import type { BaseAgent } from './base/BaseAgent';
+import type { AgentConfig, DiffItem, OverallAnalysis, AgentStatus, AgentResult } from '@/types';
+ main
 import { DEFAULT_AGENT_CONFIGS } from './base/AgentTypes';
 import type {
   AgentType,
@@ -11,7 +21,16 @@ import type {
   ReviewerAlignmentInput,
   ReviewerAlignmentOutput,
 } from './base/AgentTypes';
+ devin/1751828946-production-fixes
 import { BaseAgent } from './base/BaseAgent';
+
+ main
+
+import type { AgentConfig, DiffItem, OverallAnalysis, AgentStatus, AgentResult } from '@/types';
+import { DEFAULT_AGENT_CONFIGS } from './base/AgentTypes';
+import type { AgentType, DiffSegmentationOutput, ReviewerAlignmentOutput } from './base/AgentTypes';
+ main
+ main
 
 type AgentInput = DiffSegmentationInput | ReviewerAlignmentInput;
 type AgentOutput = DiffSegmentationOutput | ReviewerAlignmentOutput;
@@ -50,6 +69,7 @@ export class AnalysisOrchestrator {
   /**
    * Execute diff segmentation analysis
    */
+ devin/1751828946-production-fixes
   async executeDiffSegmentation(
     input: DiffSegmentationInput
   ): Promise<AgentResult<DiffSegmentationOutput>> {
@@ -57,6 +77,67 @@ export class AnalysisOrchestrator {
     if (!agent) {
       throw new Error('Diff segmentation agent not initialized');
     }
+
+  async runComprehensiveAnalysis(
+    diffs: DiffItem[],
+    reviewerRequests?: string
+  ): Promise<{
+    segmentationResult: AgentResult<DiffSegmentationOutput>;
+    alignmentResult: AgentResult<ReviewerAlignmentOutput>;
+    overallAnalysis: OverallAnalysis;
+    executionSummary: {
+      totalTime: number;
+      successfulAgents: number;
+      failedAgents: number;
+      usedFallback: boolean;
+    };
+  }> {
+    const startTime = Date.now();
+    this.resetExecution();
+
+    try {
+      // Run diff segmentation analysis
+ devin/1751845727-add-env-example
+      const segmentationResult = await this.runAgent('diff-segmentation', { diffs });
+
+      const segmentationResult = await this.runAgent<DiffSegmentationOutput>('diff-segmentation', {
+        diffs,
+      });
+ main
+
+      // Run reviewer alignment analysis (if requests provided)
+      let alignmentResult: AgentResult<ReviewerAlignmentOutput>;
+      if (reviewerRequests && reviewerRequests.trim()) {
+        alignmentResult = await this.runAgent<ReviewerAlignmentOutput>('reviewer-alignment', {
+          diffs,
+          reviewerRequests,
+        });
+      } else {
+        alignmentResult = {
+          success: true,
+          data: {
+            alignedAnalyses: [],
+            summary: {
+              totalChanges: diffs.length,
+              alignedChanges: 0,
+              alignmentPercentage: 0,
+              topRequests: [],
+              averageAlignmentScore: 0,
+            },
+          },
+          executionTime: 0,
+          usedFallback: false,
+          confidence: 0,
+        };
+      }
+
+      // Create overall analysis
+      const overallAnalysis = this.createOverallAnalysis(
+        segmentationResult,
+        alignmentResult,
+        diffs.length
+      );
+ main
 
     this.agentStatuses.set('diff-segmentation', 'executing');
 
@@ -66,6 +147,7 @@ export class AnalysisOrchestrator {
       this.agentStatuses.set('diff-segmentation', 'completed');
       return result as AgentResult<DiffSegmentationOutput>;
     } catch (error) {
+ devin/1751828946-production-fixes
       this.agentStatuses.set('diff-segmentation', 'error');
       const errorResult: AgentResult<DiffSegmentationOutput> = {
         success: false,
@@ -77,6 +159,18 @@ export class AnalysisOrchestrator {
       };
       this.executionResults.set('diff-segmentation', errorResult);
       return errorResult;
+
+ devin/1751831368-production-fixes
+
+      console.error('Comprehensive analysis failed:', error);
+ devin/1751845727-add-env-example
+
+ main
+ main
+      throw new Error(
+        `Analysis orchestration failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+ main
     }
   }
 
