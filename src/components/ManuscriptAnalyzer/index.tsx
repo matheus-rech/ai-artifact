@@ -123,6 +123,10 @@ const ManuscriptAnalyzer: React.FC = () => {
     setConfig((prev) => ({ ...prev, ...updates }));
   }, []);
 
+  useEffect(() => {
+    diffComputation.updateDiffEngine(config);
+  }, [config.useDiffMatchPatch, diffComputation]);
+
   // Auto-scroll to analysis results when completed
   useEffect(() => {
     if (activeTab === 'analysis' && multiAgentAnalysis.overallAnalysis) {

@@ -283,4 +283,3 @@ export async function runBenchmarks(): Promise<void> {
 
   console.warn(report);
 }
- main
