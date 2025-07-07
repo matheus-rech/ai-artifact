@@ -32,11 +32,7 @@ const ManuscriptAnalyzer: React.FC = () => {
     apiTimeout: parseInt(process.env['NEXT_PUBLIC_API_TIMEOUT'] || '30000', 10),
     maxRetries: parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10),
     maxTextLength: 1000000,
-    minDiffLength: 3,
- devin/1751855402-toggle-diff-engine
-    useDiffMatchPatch: true
-
- main
+    minDiffLength: 3
   });
 
   // Custom hooks
