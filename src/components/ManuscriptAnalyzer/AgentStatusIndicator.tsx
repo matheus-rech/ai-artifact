@@ -13,7 +13,7 @@ interface AgentStatusIndicatorProps {
 export const AgentStatusIndicator: React.FC<AgentStatusIndicatorProps> = ({
   statuses,
   isAnalyzing,
-  metrics
+  metrics,
 }) => {
   const getStatusIcon = (status: AgentStatus['status']): React.ReactNode => {
     switch (status) {
@@ -78,25 +78,24 @@ export const AgentStatusIndicator: React.FC<AgentStatusIndicatorProps> = ({
       {/* Agent Status Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {agentEntries.map(([agentType, status]) => (
-          <div
-            key={agentType}
-            className="border rounded-lg p-4 transition-colors hover:bg-gray-50"
-          >
+          <div key={agentType} className="border rounded-lg p-4 transition-colors hover:bg-gray-50">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-900">
                 {getAgentDisplayName(agentType)}
               </span>
               {getStatusIcon(status.status)}
             </div>
-            
+
             <div className="space-y-2">
-              <div className={cn(
-                "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium",
-                getStatusColor(status.status)
-              )}>
+              <div
+                className={cn(
+                  'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium',
+                  getStatusColor(status.status)
+                )}
+              >
                 {status.status.charAt(0).toUpperCase() + status.status.slice(1)}
               </div>
-              
+
               {status.progress !== undefined && status.status === 'running' && (
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
@@ -105,10 +104,8 @@ export const AgentStatusIndicator: React.FC<AgentStatusIndicatorProps> = ({
                   />
                 </div>
               )}
-              
-              {status.message && (
-                <p className="text-xs text-gray-600 mt-1">{status.message}</p>
-              )}
+
+              {status.message && <p className="text-xs text-gray-600 mt-1">{status.message}</p>}
             </div>
           </div>
         ))}
@@ -122,25 +119,24 @@ export const AgentStatusIndicator: React.FC<AgentStatusIndicatorProps> = ({
             <div className="bg-gray-50 p-3 rounded">
               <span className="block text-gray-600">Processing Time</span>
               <span className="font-medium">
-                {metrics.totalTime > 1000 
+                {metrics.totalTime > 1000
                   ? `${(metrics.totalTime / 1000).toFixed(1)}s`
-                  : `${metrics.totalTime.toFixed(0)}ms`
-                }
+                  : `${metrics.totalTime.toFixed(0)}ms`}
               </span>
             </div>
-            
+
             <div className="bg-gray-50 p-3 rounded">
               <span className="block text-gray-600">Analysis Method</span>
               <span className="font-medium">
                 {metrics.fallbackUsed ? 'Heuristic' : 'AI-Powered'}
               </span>
             </div>
-            
+
             <div className="bg-gray-50 p-3 rounded">
               <span className="block text-gray-600">Changes Analyzed</span>
               <span className="font-medium">{metrics.diffCount}</span>
             </div>
-            
+
             <div className="bg-gray-50 p-3 rounded">
               <span className="block text-gray-600">API Calls</span>
               <span className="font-medium">{metrics.apiCalls}</span>
@@ -154,22 +150,24 @@ export const AgentStatusIndicator: React.FC<AgentStatusIndicatorProps> = ({
         <div className="border-t pt-4 mt-4">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600">
-              Agent Coordination: {agentEntries.filter(([, status]) => status.status === 'completed').length} / {agentEntries.length} completed
+              Agent Coordination:{' '}
+              {agentEntries.filter(([, status]) => status.status === 'completed').length} /{' '}
+              {agentEntries.length} completed
             </span>
-            
+
             {metrics.fallbackUsed && (
               <span className="text-orange-600 bg-orange-100 px-2 py-1 rounded text-xs">
                 Fallback Mode Active
               </span>
             )}
           </div>
-          
+
           {/* Overall Progress Bar */}
           <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
             <div
               className="bg-blue-600 h-2 rounded-full transition-all duration-500"
-              style={{ 
-                width: `${(agentEntries.filter(([, status]) => status.status === 'completed').length / agentEntries.length) * 100}%` 
+              style={{
+                width: `${(agentEntries.filter(([, status]) => status.status === 'completed').length / agentEntries.length) * 100}%`,
               }}
             />
           </div>
