@@ -2,7 +2,7 @@ import { diff_match_patch } from 'diff-match-patch';
 import type { DiffItem, ValidationResult } from '../types';
 
 export class DiffMatchPatchEngine {
-  private dmp: any;
+  private dmp: diff_match_patch;
   private static readonly MAX_TEXT_LENGTH = 1000000;
   private static readonly MIN_DIFF_LENGTH = 3;
 
