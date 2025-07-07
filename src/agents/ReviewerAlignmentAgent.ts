@@ -11,8 +11,11 @@ export class ReviewerAlignmentAgent extends BaseAgent<
   ReviewerAlignmentInput,
   ReviewerAlignmentOutput
 > {
+ devin/1751845727-add-env-example
+
  devin/1751831368-production-fixes
 
+ main
   private claudeAPI: ClaudeAPIService;
  main
   private fallbackService: FallbackService;
@@ -58,6 +61,9 @@ export class ReviewerAlignmentAgent extends BaseAgent<
 
     return {
       alignedAnalyses,
+ devin/1751845727-add-env-example
+
+ main
  main
       summary,
     };
@@ -77,12 +83,14 @@ export class ReviewerAlignmentAgent extends BaseAgent<
       input.diffs,
       alignedAnalyses,
       input.reviewerRequests
-    );
+    ); devin/1751845727-add-env-example
+
  devin/1751831368-production-fixes
 
 
     // Minimal await to satisfy linter
     await Promise.resolve();
+ main
  main
 
     return {

@@ -1,5 +1,10 @@
 import { DiffSegmentationAgent } from './DiffSegmentationAgent';
 import { ReviewerAlignmentAgent } from './ReviewerAlignmentAgent';
+ devin/1751845727-add-env-example
+import type { AgentConfig, DiffItem, OverallAnalysis, AgentStatus, AgentResult } from '@/types';
+import { DEFAULT_AGENT_CONFIGS } from './base/AgentTypes';
+import type { AgentType, DiffSegmentationOutput, ReviewerAlignmentOutput } from './base/AgentTypes';
+
 import type { BaseAgent } from './base/BaseAgent';
 import type { AgentConfig, DiffItem, OverallAnalysis, AgentStatus, AgentResult } from '@/types';
 import { DEFAULT_AGENT_CONFIGS } from './base/AgentTypes';
@@ -10,6 +15,7 @@ import type {
   ReviewerAlignmentInput,
   ReviewerAlignmentOutput,
 } from './base/AgentTypes';
+ main
 
 import type { AgentConfig, DiffItem, OverallAnalysis, AgentStatus, AgentResult } from '@/types';
 import { DEFAULT_AGENT_CONFIGS } from './base/AgentTypes';
@@ -82,9 +88,13 @@ export class AnalysisOrchestrator {
 
     try {
       // Run diff segmentation analysis
+ devin/1751845727-add-env-example
+      const segmentationResult = await this.runAgent('diff-segmentation', { diffs });
+
       const segmentationResult = await this.runAgent<DiffSegmentationOutput>('diff-segmentation', {
         diffs,
       });
+ main
 
       // Run reviewer alignment analysis (if requests provided)
       let alignmentResult: AgentResult<ReviewerAlignmentOutput>;
@@ -132,6 +142,9 @@ export class AnalysisOrchestrator {
  devin/1751831368-production-fixes
 
       console.error('Comprehensive analysis failed:', error);
+ devin/1751845727-add-env-example
+
+ main
  main
       throw new Error(
         `Analysis orchestration failed: ${error instanceof Error ? error.message : 'Unknown error'}`

@@ -64,12 +64,17 @@
     "lint-staged": "^16.1.2",
     "prettier": "^3.6.2",
     "tailwindcss": "^4",
+ devin/1751845727-add-env-example
+    "ts-jest": "^29.4.0",
+    "ts-node": "^10.9.2",
+
  devin/1751838409-production-security-fixes
     "ts-node": "^10.9.2",
 
     "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
  devin/1751849069-add-diff-engine-toggle
+ main
  main
     "typescript": "^5"
 

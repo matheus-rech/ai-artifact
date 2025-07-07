@@ -61,6 +61,15 @@ export class ClaudeAPIService {
 
   private initializeAPI(): void {
     const apiKey = process.env['ANTHROPIC_API_KEY'];
+ devin/1751845727-add-env-example
+
+    if (apiKey) {
+      this.anthropic = new Anthropic({
+        apiKey,
+        dangerouslyAllowBrowser: process.env['NEXT_PUBLIC_ALLOW_BROWSER'] === 'true', // Controlled via environment variable
+      });
+    } else if (typeof window !== 'undefined' && 'claude' in window) {
+
     const isBrowser = typeof window !== 'undefined';
 
     if (apiKey && !isBrowser) {
@@ -68,6 +77,7 @@ export class ClaudeAPIService {
       this.anthropic = new Anthropic({ apiKey });
     } else if (isBrowser && typeof window !== 'undefined' && window.claude) {
       // Client-side fallback (e.g. window.claude injected for demos).
+ main
       this.fallbackToWindowClaude = true;
     } else {
       console.warn('No Claude API configuration found. Falling back to heuristic analysis.');
@@ -118,7 +128,21 @@ export class ClaudeAPIService {
         } else if (this.fallbackToWindowClaude && typeof window !== 'undefined' && window.claude) {
           // Use window.claude in the browser (for demos)
           const response = await Promise.race([
+ devin/1751845727-add-env-example
+            this.anthropic.messages.create({
+              model: 'claude-3-sonnet-20240229',
+              max_tokens: request.maxTokens || 4000,
+              temperature: request.temperature || 0.3,
+              messages: [
+                {
+                  role: 'user',
+                  content: request.prompt,
+                },
+              ],
+            }),
+
             window.claude.complete(request.prompt),
+ main
             new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error('Request timeout')), timeout)
             ),
@@ -138,9 +162,23 @@ export class ClaudeAPIService {
             const errorData = await response.json();
             throw new Error(`API error: ${errorData.error || response.statusText}`);
           }
+ devin/1751845727-add-env-example
+          throw new Error('Invalid response format');
+        } else if (this.fallbackToWindowClaude) {
+          // Use window.claude for artifacts
+          const response = await Promise.race([
+            (window as any).claude.complete(request.prompt),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Request timeout')), timeout)
+            ),
+          ]);
+
+          return response;
+
 
           const data = await response.json();
           return data.content;
+ main
         } else {
           throw new Error('Claude API not available');
         }
@@ -149,9 +187,13 @@ export class ClaudeAPIService {
 
         if (attempt === maxRetries) {
           throw new Error(
+ devin/1751845727-add-env-example
+            `Claude API failed after ${maxRetries} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`
+
             `Claude API failed after ${maxRetries} attempts: ${
               error instanceof Error ? error.message : 'Unknown error'
             }`
+ main
           );
         }
 
@@ -223,7 +265,11 @@ CRITICAL: Return ONLY the JSON array. No markdown, no explanations, no additiona
       const response = await this.sendRequest({ prompt });
       const analysisTime = Date.now() - startTime;
 
+ devin/1751845727-add-env-example
+      console.log(`Claude API analysis completed in ${analysisTime}ms`);
+
       console.warn(`Claude API analysis completed in ${analysisTime}ms`);
+ main
 
       // Robust JSON parsing with validation
       let analyses: ClaudeAnalysisResponse[];
@@ -232,11 +278,15 @@ CRITICAL: Return ONLY the JSON array. No markdown, no explanations, no additiona
           .trim()
           .replace(/^```json\s*/, '')
           .replace(/\s*```$/, '');
+ devin/1751845727-add-env-example
+        analyses = JSON.parse(cleanedResponse);
+
         const parsed = JSON.parse(cleanedResponse) as unknown;
         if (!Array.isArray(parsed)) {
           throw new Error('Expected array response from Claude API');
         }
         analyses = parsed as ClaudeAnalysisResponse[];
+ main
       } catch (parseError) {
         console.error('JSON parsing failed:', parseError);
         console.error('Raw response:', response);
@@ -246,6 +296,10 @@ CRITICAL: Return ONLY the JSON array. No markdown, no explanations, no additiona
       // Validate and enhance each analysis
       return analyses.map((analysis, index) => {
         const diffItem = diffs.find((d) => d.id === analysis.diffId) || diffs[index];
+ devin/1751845727-add-env-example
+
+
+ main
         return {
           analysisId: generateId('claude-seg'),
           diffId: analysis.diffId || diffItem?.id || `unknown-${index}`,
@@ -332,19 +386,29 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
       const response = await this.sendRequest({ prompt });
       const analysisTime = Date.now() - startTime;
 
+ devin/1751845727-add-env-example
+      console.log(`Claude reviewer alignment analysis completed in ${analysisTime}ms`);
+
+      let analyses: any[];
+
       console.warn(`Claude reviewer alignment analysis completed in ${analysisTime}ms`);
 
       let analyses: ClaudeReviewerResponse[];
+ main
       try {
         const cleanedResponse = response
           .trim()
           .replace(/^```json\s*/, '')
           .replace(/\s*```$/, '');
+ devin/1751845727-add-env-example
+        analyses = JSON.parse(cleanedResponse);
+
         const parsed = JSON.parse(cleanedResponse) as unknown;
         if (!Array.isArray(parsed)) {
           throw new Error('Expected array response from Claude API');
         }
         analyses = parsed as ClaudeReviewerResponse[];
+ main
       } catch (parseError) {
         console.error('JSON parsing failed for reviewer alignment:', parseError);
         throw new Error('Invalid JSON response from Claude API');
@@ -354,6 +418,10 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
         .filter((analysis) => analysis.alignmentScore > 25) // Filter low-relevance items
         .map((analysis, index) => {
           const diffItem = diffs.find((d) => d.id === analysis.diffId);
+ devin/1751845727-add-env-example
+
+
+ main
           return {
             analysisId: generateId('claude-rev'),
             diffId: analysis.diffId || `rev-${index}`,
