@@ -1,0 +1,171 @@
+import { DiffEngine } from '../services/diffEngine';
+import type { DiffItem } from '../types';
+
+interface BenchmarkResult {
+  algorithm: string;
+  duration: number;
+  accuracy: number;
+  diffs: DiffItem[];
+}
+
+interface BenchmarkSuite {
+  name: string;
+  originalText: string;
+  revisedText: string;
+  results: BenchmarkResult[];
+}
+
+/**
+ * Utility functions for running performance benchmarks on diff algorithms
+ */
+export class BenchmarkRunner {
+  private diffEngine: DiffEngine;
+
+  constructor() {
+    this.diffEngine = new DiffEngine();
+  }
+
+  /**
+   * Run a comprehensive benchmark suite
+   */
+  async runBenchmarkSuite(testCases: Array<{
+    name: string;
+    original: string;
+    revised: string;
+  }>): Promise<BenchmarkSuite[]> {
+    const results: BenchmarkSuite[] = [];
+
+    for (const testCase of testCases) {
+      const suite: BenchmarkSuite = {
+        name: testCase.name,
+        originalText: testCase.original,
+        revisedText: testCase.revised,
+        results: []
+      };
+
+      // Benchmark word-level diffs
+      const wordResult = await this.benchmarkWordDiffs(
+        testCase.original,
+        testCase.revised
+      );
+      suite.results.push(wordResult);
+
+      // Benchmark sentence-level diffs
+      const sentenceResult = await this.benchmarkSentenceDiffs(
+        testCase.original,
+        testCase.revised
+      );
+      suite.results.push(sentenceResult);
+
+      results.push(suite);
+    }
+
+    // Performance thresholds and analysis constants
+    // const PERFORMANCE_THRESHOLD_MS = 50;
+    // const PERFORMANCE_RATIO_THRESHOLD = 0.8;
+    // const ACCURACY_DIFFERENCE_THRESHOLD = 0.05;
+
+    return results;
+  }
+
+  /**
+   * Benchmark word-level diff generation
+   */
+  private async benchmarkWordDiffs(original: string, revised: string): Promise<BenchmarkResult> {
+    const startTime = performance.now();
+    
+    const diffs = this.diffEngine.generateWordDiffs(original, revised);
+    
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+
+    return {
+      algorithm: 'word-level',
+      duration,
+      accuracy: this.calculateAccuracy(diffs, original, revised),
+      diffs
+    };
+  }
+
+  /**
+   * Benchmark sentence-level diff generation
+   */
+  private async benchmarkSentenceDiffs(original: string, revised: string): Promise<BenchmarkResult> {
+    const startTime = performance.now();
+    
+    const diffs = this.diffEngine.generateSentenceDiffs(original, revised);
+    
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+
+    return {
+      algorithm: 'sentence-level',
+      duration,
+      accuracy: this.calculateAccuracy(diffs, original, revised),
+      diffs
+    };
+  }
+
+  /**
+   * Calculate accuracy score for diff results
+   */
+  private calculateAccuracy(diffs: DiffItem[], original: string, revised: string): number {
+    // Simple accuracy calculation based on diff coverage
+    const totalLength = Math.max(original.length, revised.length);
+    const coveredLength = diffs.reduce((sum, diff) => sum + diff.text.length, 0);
+    
+    return totalLength > 0 ? coveredLength / totalLength : 1.0;
+  }
+
+  /**
+   * Generate a performance report
+   */
+  generateReport(suites: BenchmarkSuite[]): string {
+    let report = 'Diff Engine Performance Report\n';
+    report += '================================\n\n';
+
+    for (const suite of suites) {
+      report += `Test Case: ${suite.name}\n`;
+      report += '-'.repeat(suite.name.length + 12) + '\n';
+
+      for (const result of suite.results) {
+        report += `  ${result.algorithm}:\n`;
+        report += `    Duration: ${result.duration.toFixed(2)}ms\n`;
+        report += `    Accuracy: ${(result.accuracy * 100).toFixed(1)}%\n`;
+        report += `    Diffs: ${result.diffs.length}\n\n`;
+      }
+    }
+
+    return report;
+  }
+}
+
+/**
+ * Run benchmarks for the diff engine
+ */
+export async function runBenchmarks(): Promise<void> {
+  const runner = new BenchmarkRunner();
+
+  const testCases = [
+    {
+      name: 'Simple Text Change',
+      original: 'The quick brown fox jumps over the lazy dog.',
+      revised: 'The quick red fox jumps over the sleeping dog.'
+    },
+    {
+      name: 'Academic Paper Abstract',
+      original: 'This study examines the effects of machine learning on data processing. Our methodology involved statistical analysis of large datasets.',
+      revised: 'This comprehensive study examines the effects of advanced machine learning algorithms on efficient data processing. Our rigorous methodology involved robust statistical analysis of extensive datasets.'
+    },
+    {
+      name: 'Long Document',
+      original: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(50),
+      revised: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt. '.repeat(50)
+    }
+  ];
+
+  const suites = await runner.runBenchmarkSuite(testCases);
+  const report = runner.generateReport(suites);
+
+  console.log(report);
+}
