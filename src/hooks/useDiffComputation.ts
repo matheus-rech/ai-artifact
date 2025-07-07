@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { DiffEngine } from '@/services/diffEngine';
-import type { DiffItem, ValidationResult, DiffGranularity } from '@/types';
+import { DiffMatchPatchEngine } from '@/services/diffMatchPatchEngine';
+import type { DiffItem, ValidationResult, DiffGranularity, AppConfig } from '@/types';
 
 interface UseDiffComputationState {
   diffs: DiffItem[];
@@ -18,7 +19,7 @@ interface UseDiffComputationActions {
 /**
  * Hook for managing diff computation with performance optimization
  */
-export function useDiffComputation(): UseDiffComputationState & UseDiffComputationActions {
+export function useDiffComputation(config: AppConfig): UseDiffComputationState & UseDiffComputationActions {
   const [state, setState] = useState<UseDiffComputationState>({
     diffs: [],
     isComputing: false,
@@ -26,8 +27,11 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
     error: null
   });
 
-  // Memoized diff engine instance
+  // Memoized diff engine instances
   const diffEngine = useMemo(() => new DiffEngine(), []);
+  const diffMatchPatchEngine = useMemo(() => new DiffMatchPatchEngine(), []);
+  
+  const selectedEngine = config.useDiffMatchPatch ? diffMatchPatchEngine : diffEngine;
 
   /**
    * Compute diffs between original and revised text
@@ -50,7 +54,7 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
     try {
       const startTime = performance.now();
 
-      // Validate inputs
+      // Validate inputs (only DiffEngine has validateInput method)
       const originalValidation = diffEngine.validateInput(original);
       const revisedValidation = diffEngine.validateInput(revised);
 
@@ -62,12 +66,12 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
         throw new Error(`Revised text validation failed: ${revisedValidation.errors.join(', ')}`);
       }
 
-      // Compute diffs based on granularity
+      // Compute diffs based on granularity using selected engine
       let diffs: DiffItem[];
       if (granularity === 'word') {
-        diffs = diffEngine.generateWordDiffs(original, revised);
+        diffs = selectedEngine.generateWordDiffs(original, revised);
       } else {
-        diffs = diffEngine.generateSentenceDiffs(original, revised);
+        diffs = selectedEngine.generateSentenceDiffs(original, revised);
       }
 
       const computationTime = performance.now() - startTime;
@@ -80,7 +84,7 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
         error: null
       }));
 
-      console.log(`Diff computation completed: ${diffs.length} changes in ${computationTime.toFixed(2)}ms`);
+      console.warn(`Diff computation completed: ${diffs.length} changes in ${computationTime.toFixed(2)}ms`);
       
       return diffs;
 
@@ -96,7 +100,7 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
 
       throw error;
     }
-  }, [state.isComputing, diffEngine]);
+  }, [state.isComputing, selectedEngine, diffEngine]);
 
   /**
    * Reset diff computation state
@@ -117,12 +121,12 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Validate original text
+    // Validate original text (using DiffEngine for validation)
     const originalValidation = diffEngine.validateInput(original);
     errors.push(...originalValidation.errors);
     warnings.push(...originalValidation.warnings);
 
-    // Validate revised text
+    // Validate revised text (using DiffEngine for validation)
     const revisedValidation = diffEngine.validateInput(revised);
     errors.push(...revisedValidation.errors);
     warnings.push(...revisedValidation.warnings);

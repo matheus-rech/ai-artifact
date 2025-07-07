@@ -9,6 +9,7 @@ import { FileUploadArea } from './FileUploadArea';
 import { DiffViewer } from './DiffViewer';
 import { AnalysisPanel } from './AnalysisPanel';
 import { AgentStatusIndicator } from './AgentStatusIndicator';
+import { AdvancedSettings } from './AdvancedSettings';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import type { AnalysisTab, DiffGranularity, AppConfig } from '@/types';
 import { cn } from '@/utils';
@@ -23,12 +24,13 @@ const ManuscriptAnalyzer: React.FC = () => {
     apiTimeout: parseInt(process.env['NEXT_PUBLIC_API_TIMEOUT'] || '30000', 10),
     maxRetries: parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10),
     maxTextLength: 1000000,
-    minDiffLength: 3
+    minDiffLength: 3,
+    useDiffMatchPatch: false
   });
 
   // Custom hooks
   const validation = useManuscriptValidation();
-  const diffComputation = useDiffComputation();
+  const diffComputation = useDiffComputation(config);
   const multiAgentAnalysis = useMultiAgentAnalysis();
 
   /**
@@ -292,6 +294,10 @@ const ManuscriptAnalyzer: React.FC = () => {
                     ))}
                   </div>
                 )}
+              </div>
+
+              <div className="bg-white rounded-lg shadow p-6 border-t-4 border-indigo-500">
+                <AdvancedSettings config={config} onConfigChange={updateConfig} />
               </div>
 
               <div className="flex justify-center">

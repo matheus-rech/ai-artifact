@@ -113,6 +113,7 @@ export interface AppConfig {
   maxRetries: number;
   maxTextLength: number;
   minDiffLength: number;
+  useDiffMatchPatch: boolean;
 }
 
 // Manuscript section types
