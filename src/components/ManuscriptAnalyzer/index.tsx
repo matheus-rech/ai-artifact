@@ -33,25 +33,7 @@ const ManuscriptAnalyzer: React.FC = () => {
     maxRetries: parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10),
     maxTextLength: 1000000,
     minDiffLength: 3,
- devin/1751828946-production-fixes
-    useDiffMatchPatch: true
-
- devin/1751845727-add-env-example
-
- devin/1751831368-production-fixes
-
- devin/1751849069-add-diff-engine-toggle
-    useDiffMatchPatch: false
-
-
-    useDiffMatchPatch: false
-
-    useDiffMatchPatch: true
- main
- main
- main
- main
- main
+    useDiffMatchPatch: true // Set diff-match-patch as default based on benchmark results
   });
 
   // Custom hooks
@@ -129,7 +111,7 @@ const ManuscriptAnalyzer: React.FC = () => {
    */
   const resetAnalysis = useCallback((): void => {
     validation.resetValidation();
-    diffComputation.resetDiffs();
+    diffComputation.clearDiffs();
     multiAgentAnalysis.resetAnalysis();
     setActiveTab('upload');
   }, [validation, diffComputation, multiAgentAnalysis]);
@@ -336,7 +318,7 @@ const ManuscriptAnalyzer: React.FC = () => {
               </div>
 
               <div className="bg-white rounded-lg shadow p-6 border-t-4 border-indigo-500">
-                <AdvancedSettings config={config} onConfigChange={updateConfig} />
+                <AdvancedSettings config={config} updateConfig={updateConfig} />
               </div>
 
               <div className="flex justify-center">
