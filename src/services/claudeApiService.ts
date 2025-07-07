@@ -273,7 +273,17 @@ CRITICAL: Return ONLY the JSON array. No markdown, no explanations, no additiona
           .replace(/^```json\s*/, '')
           .replace(/\s*```$/, '');
 
+
         analyses = JSON.parse(cleanedResponse) as ClaudeAnalysisResponse[];
+
+        const parsed = JSON.parse(cleanedResponse) as unknown;
+
+        if (!Array.isArray(parsed)) {
+          throw new Error('Expected array response from Claude API');
+        }
+
+        analyses = parsed as ClaudeAnalysisResponse[];
+ main
       } catch (parseError) {
         console.error('JSON parsing failed:', parseError);
         console.error('Raw response:', response);
@@ -378,8 +388,18 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
           .trim()
           .replace(/^```json\s*/, '')
           .replace(/\s*```$/, '');
+ copilot/fix-fc6013a0-f0af-4bf8-8e3a-7743fb843179
 
         analyses = JSON.parse(cleanedResponse) as ClaudeReviewerResponse[];
+
+        const parsed = JSON.parse(cleanedResponse) as unknown;
+
+        if (!Array.isArray(parsed)) {
+          throw new Error('Expected array response from Claude API');
+        }
+
+        analyses = parsed as ClaudeReviewerResponse[];
+ main
       } catch (parseError) {
         console.error('JSON parsing failed for reviewer alignment:', parseError);
         throw new Error('Invalid JSON response from Claude API');
