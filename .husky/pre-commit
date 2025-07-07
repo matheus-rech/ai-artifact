@@ -1,4 +1,6 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-npx lint-staged
+# Run linting checks
+npx eslint . --ext .js,.jsx,.ts,.tsx
+echo "Pre-commit hooks running linting checks"

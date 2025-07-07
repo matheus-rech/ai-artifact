@@ -1,18 +1,33 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type {
-  DiffItem,
-  AnalysisItem,
-  ClaudeAPIRequest,
-  ManuscriptSection,
-  Assessment,
-  Priority,
-} from '@/types';
-import { generateId } from '@/utils';
+import type { DiffItem, AnalysisItem } from '@/types';
 
 /**
- * Production-ready Claude API service with comprehensive error handling
+ * Type definitions for Claude API interactions
+ */
+interface ClaudeAPIRequest {
+  messages: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+  }>;
+  system?: string;
+  max_tokens?: number;
+  temperature?: number;
+}
+
+interface ClaudeAnalysisRequest {
+  type: 'segmentation' | 'alignment';
+  diffs: DiffItem[];
+  reviewerRequests?: string;
+}
+
+/**
+ * Service for interacting with Claude API
+ * Handles both diff segmentation and reviewer alignment analysis
  */
 export class ClaudeAPIService {
+  private static readonly DEFAULT_MAX_RETRIES = 3;
+  private static readonly DEFAULT_API_TIMEOUT = 30_000;
+
   private anthropic: Anthropic | null = null;
 
   constructor() {
@@ -21,11 +36,11 @@ export class ClaudeAPIService {
 
   private initializeAPI(): void {
     const apiKey = process.env['ANTHROPIC_API_KEY'];
+    const isBrowser = typeof window !== 'undefined';
 
-    if (apiKey) {
-      this.anthropic = new Anthropic({
-        apiKey,
-      });
+    if (apiKey && !isBrowser) {
+      // Server-side execution – safe to create the SDK client.
+      this.anthropic = new Anthropic({ apiKey });
     } else {
       console.warn(
         'No Claude API configuration found. This service should only be used server-side.'
@@ -37,350 +52,279 @@ export class ClaudeAPIService {
    * Send a request to Claude API with retry logic
    */
   private async sendRequest(request: ClaudeAPIRequest): Promise<string> {
-    const maxRetries = parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10);
-    const timeout = parseInt(process.env['NEXT_PUBLIC_API_TIMEOUT'] || '30000', 10);
+    const envRetriesRaw = process.env['NEXT_PUBLIC_MAX_RETRIES'];
+    const envTimeoutRaw = process.env['NEXT_PUBLIC_API_TIMEOUT'];
+    const envRetries = Number(envRetriesRaw);
+    const envTimeout = Number(envTimeoutRaw);
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    let maxRetries: number;
+    if (envRetriesRaw !== undefined && (!Number.isFinite(envRetries) || envRetries <= 0)) {
+      console.warn(
+        `[claudeApiService] Invalid NEXT_PUBLIC_MAX_RETRIES value "${envRetriesRaw}" – using default ${ClaudeAPIService.DEFAULT_MAX_RETRIES}`
+      );
+      maxRetries = ClaudeAPIService.DEFAULT_MAX_RETRIES;
+    } else {
+      maxRetries = envRetries || ClaudeAPIService.DEFAULT_MAX_RETRIES;
+    }
+
+    let apiTimeout: number;
+    if (envTimeoutRaw !== undefined && (!Number.isFinite(envTimeout) || envTimeout <= 0)) {
+      console.warn(
+        `[claudeApiService] Invalid NEXT_PUBLIC_API_TIMEOUT value "${envTimeoutRaw}" – using default ${ClaudeAPIService.DEFAULT_API_TIMEOUT}`
+      );
+      apiTimeout = ClaudeAPIService.DEFAULT_API_TIMEOUT;
+    } else {
+      apiTimeout = envTimeout || ClaudeAPIService.DEFAULT_API_TIMEOUT;
+    }
+
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        if (this.anthropic) {
-          // Use Anthropic SDK
-          const response = await Promise.race([
-            this.anthropic.messages.create({
-              model: 'claude-3-sonnet-20240229',
-              max_tokens: request.maxTokens || 4000,
-              temperature: request.temperature || 0.3,
-              messages: [
-                {
-                  role: 'user',
-                  content: request.prompt,
-                },
-              ],
-            }),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Request timeout')), timeout)
-            ),
-          ]);
-
-          if (response.content[0]?.type === 'text') {
-            return response.content[0].text;
-          }
-          throw new Error('Invalid response format');
-        } else {
-          throw new Error('Claude API not available - service must be used server-side');
+        if (!this.anthropic) {
+          throw new Error('Claude API not initialized. Check API key configuration.');
         }
+
+        const response = await this.anthropic.messages.create({
+          model: 'claude-3-5-sonnet-latest',
+          messages: request.messages,
+          system: request.system,
+          max_tokens: request.max_tokens || 4096,
+          temperature: request.temperature || 0,
+        });
+
+        if (response.content && response.content.length > 0 && response.content[0].type === 'text') {
+          return response.content[0].text;
+        }
+
+        throw new Error('Invalid response format from Claude API');
       } catch (error) {
-        console.error(`Claude API attempt ${attempt} failed:`, error);
+        lastError = error as Error;
+        console.warn(`Claude API attempt ${attempt + 1} failed:`, error);
 
-        if (attempt === maxRetries) {
-          throw new Error(
-            `Claude API failed after ${maxRetries} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`
-          );
+        // Don't retry on specific errors
+        if (
+          error instanceof Error &&
+          (error.message.includes('API key') ||
+            error.message.includes('not initialized') ||
+            error.message.includes('401'))
+        ) {
+          break;
         }
 
-        // Exponential backoff
-        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        // Wait before retrying
+        if (attempt < maxRetries - 1) {
+          await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        }
       }
     }
 
-    throw new Error('Unexpected error in Claude API request');
+    throw lastError || new Error('Claude API request failed after all retries');
   }
 
   /**
-   * Analyze diff segmentation with enhanced prompting
+   * Analyze manuscript diffs for segmentation
    */
   async analyzeDiffSegmentation(diffs: DiffItem[]): Promise<AnalysisItem[]> {
     if (!diffs || diffs.length === 0) {
-      throw new Error('No diffs provided for analysis');
+      return [];
     }
 
-    if (diffs.length > 100) {
-      console.warn(
-        `Large number of diffs (${diffs.length}). Consider chunking for better performance.`
-      );
-    }
+    const systemPrompt = `You are an expert academic manuscript reviewer. Analyze the following manuscript changes and categorize them by section (Abstract, Introduction, Methods, Results, Discussion, Conclusions, References, Other).
 
-    const prompt = `You are a senior manuscript editor with expertise in academic writing and journal standards. 
+For each change, determine:
+1. Which manuscript section it belongs to
+2. The priority (high/medium/low) based on scientific importance
+3. Assessment (positive/negative/neutral) of the change quality
+4. A brief expert comment
 
-TASK: Analyze the following ${diffs.length} text changes in an academic manuscript revision and provide structured insights.
+Respond in JSON format only.`;
 
-CHANGES TO ANALYZE:
+    const userPrompt = `Analyze these manuscript changes:
+
 ${diffs
   .map(
-    (d, i) => `
-Change ${i + 1} (ID: ${d.id}):
-- Type: ${d.type}
-- Text: "${d.text}"
-- Confidence: ${d.confidence?.toFixed(2) || 'N/A'}
-- Context: ${d.context || 'No context available'}
-- Position: Original ${d.originalPos}, Revised ${d.revisedPos}
-`
+    (d) => `
+Change ID: ${d.id}
+Type: ${d.type}
+Text: ${d.text}
+Context: ${d.context || 'No context provided'}
+---`
   )
   .join('\n')}
 
-ANALYSIS REQUIREMENTS:
-For each change, determine:
-1. SECTION: Which manuscript section (Abstract, Introduction, Literature Review, Methods, Results, Discussion, Conclusion, References, Appendix, or Body)
-2. PRIORITY: Impact level (high=major content changes, medium=moderate improvements, low=minor edits)
-3. ASSESSMENT: Quality evaluation (positive=improves clarity/accuracy, negative=unclear/problematic, neutral=minor change)
-4. COMMENT: Specific editorial assessment (2-3 sentences explaining the change's impact)
-5. REVIEWER_INSIGHT: How this change addresses common reviewer concerns or manuscript standards
-
-RESPOND WITH VALID JSON ONLY:
-[
-  {
-    "diffId": "exact_change_id_from_above",
-    "section": "section_name",
-    "priority": "high|medium|low",
-    "assessment": "positive|negative|neutral",
-    "comment": "detailed editorial assessment of this specific change",
-    "reviewerPoint": "how this addresses manuscript quality or reviewer expectations",
-    "confidence": 0.85
-  }
-]
-
-CRITICAL: Return ONLY the JSON array. No markdown, no explanations, no additional text.`;
+Respond with a JSON array where each item has:
+{
+  "diffId": "string",
+  "section": "Abstract|Introduction|Methods|Results|Discussion|Conclusions|References|Other",
+  "priority": "high|medium|low",
+  "assessment": "positive|negative|neutral",
+  "comment": "brief expert analysis",
+  "confidence": 0.0-1.0
+}`;
 
     try {
-      const startTime = Date.now();
-      const response = await this.sendRequest({ prompt });
-      const analysisTime = Date.now() - startTime;
-
-      console.warn(`Claude API analysis completed in ${analysisTime}ms`);
-
-      // Robust JSON parsing with validation
-      let analyses: Array<{
-        diffId?: string;
-        section?: string;
-        priority?: string;
-        assessment?: string;
-        comment?: string;
-        reviewerPoint?: string;
-        confidence?: number;
-      }>;
-      try {
-        const cleanedResponse = response
-          .trim()
-          .replace(/^```json\s*/, '')
-          .replace(/\s*```$/, '');
-        analyses = JSON.parse(cleanedResponse) as Array<{
-          diffId?: string;
-          section?: string;
-          priority?: string;
-          assessment?: string;
-          comment?: string;
-          reviewerPoint?: string;
-          confidence?: number;
-        }>;
-      } catch (parseError) {
-        console.error('JSON parsing failed:', parseError);
-        console.warn('Raw response:', response);
-        throw new Error('Invalid JSON response from Claude API');
-      }
-
-      if (!Array.isArray(analyses)) {
-        throw new Error('Expected array response from Claude API');
-      }
-
-      // Validate and enhance each analysis
-      return analyses.map((analysis, index) => {
-        const diffItem = diffs.find((d) => d.id === analysis.diffId) || diffs[index];
-
-        return {
-          analysisId: generateId('claude-seg'),
-          diffId: analysis.diffId || diffItem?.id || `unknown-${index}`,
-          section: this.validateSection(analysis.section || 'Body'),
-          changeType: diffItem?.type || 'unknown',
-          reviewerPoint: analysis.reviewerPoint || 'Analysis completed',
-          assessment: this.validateAssessment(analysis.assessment || 'neutral'),
-          comment: analysis.comment || 'Change analyzed',
-          relatedText: (diffItem?.text || '').slice(0, 60),
-          priority: this.validatePriority(analysis.priority || 'medium'),
-          confidence: Math.min(Math.max(analysis.confidence || 0.5, 0), 1),
-          timestamp: new Date().toISOString(),
-        };
+      const response = await this.sendRequest({
+        messages: [{ role: 'user', content: userPrompt }],
+        system: systemPrompt,
+        temperature: 0,
       });
+
+      const analyses = this.parseAnalysisResponse(response, diffs);
+      return analyses;
     } catch (error) {
-      console.error('Claude API segmentation error:', error);
-      throw new Error(
-        `Segmentation analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      console.error('Diff segmentation analysis failed:', error);
+      throw error;
     }
   }
 
   /**
-   * Analyze reviewer alignment with enhanced context understanding
+   * Analyze reviewer alignment
    */
   async analyzeReviewerAlignment(
     diffs: DiffItem[],
-    revisionRequests: string
+    reviewerRequests: string
   ): Promise<AnalysisItem[]> {
-    if (!diffs || diffs.length === 0) {
+    if (!diffs || diffs.length === 0 || !reviewerRequests) {
       return [];
     }
 
-    if (!revisionRequests || revisionRequests.trim().length < 10) {
-      console.warn('Revision requests are very short or empty. Analysis may be limited.');
-      return [];
-    }
+    const systemPrompt = `You are an expert academic manuscript reviewer. Analyze how well the manuscript changes address the reviewer's requests.
 
-    const prompt = `You are an expert academic reviewer analyzing how manuscript revisions address specific reviewer requests.
+For each change, determine:
+1. Which specific reviewer request it addresses
+2. The alignment score (0-100) indicating how well it addresses the request
+3. A brief explanation of the alignment
 
-REVIEWER REVISION REQUESTS:
-"${revisionRequests.trim()}"
+Respond in JSON format only.`;
 
-AUTHOR CHANGES (${diffs.length} total):
+    const userPrompt = `Reviewer Requests:
+${reviewerRequests}
+
+Manuscript Changes:
 ${diffs
   .map(
-    (d, i) => `
-Change ${i + 1} (ID: ${d.id}):
-- Type: ${d.type}
-- Text: "${d.text}"
-- Confidence: ${d.confidence?.toFixed(2) || 'N/A'}
-- Context: ${d.context || 'Limited context'}
-`
+    (d) => `
+Change ID: ${d.id}
+Type: ${d.type}
+Text: ${d.text}
+Context: ${d.context || 'No context provided'}
+---`
   )
   .join('\n')}
 
-ANALYSIS TASK:
-1. Identify which changes directly address the reviewer requests
-2. Calculate alignment score (0-100) based on:
-   - Direct keyword/topic matches
-   - Conceptual relevance to requests
-   - Quality of the response to concerns
-3. Only include changes with alignment score > 25
-4. Provide specific commentary on how each change addresses requests
-
-RESPOND WITH VALID JSON ONLY:
-[
-  {
-    "diffId": "exact_change_id_from_above",
-    "alignmentScore": 85,
-    "section": "section_name",
-    "priority": "high|medium|low",
-    "assessment": "positive|negative|neutral",
-    "reviewerPoint": "specific request this change addresses",
-    "comment": "detailed explanation of how this change responds to reviewer concerns",
-    "confidence": 0.90
-  }
-]
-
-CRITICAL: Return ONLY the JSON array. Include only changes with meaningful alignment (score > 25).`;
+Analyze alignment and respond with a JSON array where each item has:
+{
+  "diffId": "string",
+  "reviewerPoint": "specific request being addressed",
+  "alignmentScore": 0-100,
+  "comment": "explanation of how this addresses the reviewer",
+  "confidence": 0.0-1.0
+}`;
 
     try {
-      const startTime = Date.now();
-      const response = await this.sendRequest({ prompt });
-      const analysisTime = Date.now() - startTime;
+      const response = await this.sendRequest({
+        messages: [{ role: 'user', content: userPrompt }],
+        system: systemPrompt,
+        temperature: 0,
+      });
 
-      console.warn(`Claude reviewer alignment analysis completed in ${analysisTime}ms`);
-
-      let analyses: Array<{
-        diffId?: string;
-        alignmentScore?: number;
-        section?: string;
-        priority?: string;
-        assessment?: string;
-        comment?: string;
-        reviewerPoint?: string;
-        confidence?: number;
-      }>;
-      try {
-        const cleanedResponse = response
-          .trim()
-          .replace(/^```json\s*/, '')
-          .replace(/\s*```$/, '');
-        analyses = JSON.parse(cleanedResponse) as Array<{
-          diffId?: string;
-          alignmentScore?: number;
-          section?: string;
-          priority?: string;
-          assessment?: string;
-          comment?: string;
-          reviewerPoint?: string;
-          confidence?: number;
-        }>;
-      } catch (parseError) {
-        console.error('JSON parsing failed for reviewer alignment:', parseError);
-        throw new Error('Invalid JSON response from Claude API');
-      }
-
-      if (!Array.isArray(analyses)) {
-        throw new Error('Expected array response from Claude API');
-      }
-
-      return analyses
-        .filter((analysis) => (analysis.alignmentScore || 0) > 25) // Filter low-relevance items
-        .map((analysis, index) => {
-          const diffItem = diffs.find((d) => d.id === analysis.diffId);
-
-          return {
-            analysisId: generateId('claude-rev'),
-            diffId: analysis.diffId || `rev-${index}`,
-            section: this.validateSection(analysis.section || 'Body'),
-            changeType: diffItem?.type || 'unknown',
-            reviewerPoint: analysis.reviewerPoint || 'Addresses reviewer concerns',
-            assessment: this.validateAssessment(analysis.assessment || 'neutral'),
-            comment: analysis.comment || 'Responds to reviewer feedback',
-            relatedText: (diffItem?.text || '').slice(0, 60),
-            priority: this.validatePriority(analysis.priority || 'medium'),
-            confidence: Math.min(Math.max(analysis.confidence || 0.7, 0), 1),
-            timestamp: new Date().toISOString(),
-          };
-        });
+      const analyses = this.parseAlignmentResponse(response, diffs);
+      return analyses;
     } catch (error) {
-      console.error('Claude API reviewer alignment error:', error);
-      throw new Error(
-        `Reviewer alignment analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      console.error('Reviewer alignment analysis failed:', error);
+      throw error;
     }
   }
 
   /**
-   * Validation helpers
+   * Parse segmentation analysis response
    */
-  private validateSection(section: string): ManuscriptSection {
-    const validSections: ManuscriptSection[] = [
-      'Abstract',
-      'Introduction',
-      'Literature Review',
-      'Methods',
-      'Methodology',
-      'Results',
-      'Discussion',
-      'Conclusion',
-      'References',
-      'Appendix',
-      'Body',
-    ];
-    return validSections.includes(section as ManuscriptSection)
-      ? (section as ManuscriptSection)
-      : 'Body';
-  }
+  private parseAnalysisResponse(response: string, diffs: DiffItem[]): AnalysisItem[] {
+    try {
+      // Extract JSON from response
+      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error('No JSON array found in response');
+      }
 
-  private validateAssessment(assessment: string): Assessment {
-    const valid: Assessment[] = ['positive', 'negative', 'neutral'];
-    return valid.includes(assessment as Assessment) ? (assessment as Assessment) : 'neutral';
-  }
+      const parsed = JSON.parse(jsonMatch[0]) as Array<{
+        diffId: string;
+        section: string;
+        priority: string;
+        assessment: string;
+        comment: string;
+        confidence: number;
+      }>;
 
-  private validatePriority(priority: string): Priority {
-    const valid: Priority[] = ['high', 'medium', 'low'];
-    return valid.includes(priority as Priority) ? (priority as Priority) : 'medium';
+      return parsed.map((item) => ({
+        analysisId: `claude-seg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        diffId: item.diffId,
+        section: item.section,
+        priority: item.priority as 'high' | 'medium' | 'low',
+        assessment: item.assessment as 'positive' | 'negative' | 'neutral',
+        comment: item.comment,
+        confidence: item.confidence || 0.8,
+      }));
+    } catch (error) {
+      console.error('Failed to parse Claude response:', error);
+      throw new Error('Failed to parse analysis response');
+    }
   }
 
   /**
-   * Check if Claude API is available
+   * Parse alignment analysis response
+   */
+  private parseAlignmentResponse(response: string, diffs: DiffItem[]): AnalysisItem[] {
+    try {
+      // Extract JSON from response
+      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error('No JSON array found in response');
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]) as Array<{
+        diffId: string;
+        reviewerPoint: string;
+        alignmentScore: number;
+        comment: string;
+        confidence: number;
+      }>;
+
+      return parsed.map((item) => ({
+        analysisId: `claude-align-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        diffId: item.diffId,
+        section: 'Review Alignment',
+        priority: item.alignmentScore > 80 ? 'high' : item.alignmentScore > 50 ? 'medium' : 'low',
+        assessment: item.alignmentScore > 70 ? 'positive' : item.alignmentScore > 40 ? 'neutral' : 'negative',
+        comment: item.comment,
+        confidence: item.confidence || 0.8,
+        reviewerPoint: item.reviewerPoint,
+        alignmentScore: item.alignmentScore,
+      }));
+    } catch (error) {
+      console.error('Failed to parse Claude response:', error);
+      throw new Error('Failed to parse alignment response');
+    }
+  }
+
+  /**
+   * Check if the service is available
    */
   isAvailable(): boolean {
     return this.anthropic !== null;
   }
 
   /**
-   * Get API status information
+   * Get service status for health checks
    */
   getStatus(): { available: boolean; method: string } {
-    if (this.anthropic) {
-      return { available: true, method: 'Anthropic SDK (Server-side)' };
-    } else {
-      return { available: false, method: 'None' };
-    }
+    return {
+      available: this.isAvailable(),
+      method: this.anthropic ? 'SDK' : 'None',
+    };
   }
 }
+
+// Export singleton instance
+export const claudeAPI = new ClaudeAPIService();

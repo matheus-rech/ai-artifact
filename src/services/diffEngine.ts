@@ -79,10 +79,9 @@ export class DiffEngine {
     const n = arr2.length;
 
     // Dynamic programming table
-    const dp: number[][] = [];
-    for (let i = 0; i <= m; i++) {
-      dp[i] = new Array(n + 1).fill(0) as number[];
-    }
+    const dp: number[][] = Array(m + 1)
+      .fill(null)
+      .map(() => Array(n + 1).fill(0));
 
     // Build LCS table
     for (let i = 1; i <= m; i++) {
@@ -193,26 +192,25 @@ export class DiffEngine {
    * Levenshtein distance implementation
    */
   private levenshteinDistance(str1: string, str2: string): number {
-    const matrix: (number | null)[][] = [];
-    for (let i = 0; i <= str2.length; i++) {
-      matrix[i] = new Array(str1.length + 1).fill(null) as (number | null)[];
-    }
+    const matrix = Array(str2.length + 1)
+      .fill(null)
+      .map(() => Array(str1.length + 1).fill(null));
 
-    for (let i = 0; i <= str1.length; i++) (matrix[0] as number[])[i] = i;
-    for (let j = 0; j <= str2.length; j++) (matrix[j] as number[])[0] = j;
+    for (let i = 0; i <= str1.length; i++) matrix[0]![i] = i;
+    for (let j = 0; j <= str2.length; j++) matrix[j]![0] = j;
 
     for (let j = 1; j <= str2.length; j++) {
       for (let i = 1; i <= str1.length; i++) {
         const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
-        (matrix[j] as number[])[i] = Math.min(
-          ((matrix[j] as number[])[i - 1] as number) + 1, // deletion
-          ((matrix[j - 1] as number[])[i] as number) + 1, // insertion
-          ((matrix[j - 1] as number[])[i - 1] as number) + indicator // substitution
+        matrix[j]![i] = Math.min(
+          matrix[j]![i - 1]! + 1, // deletion
+          matrix[j - 1]![i]! + 1, // insertion
+          matrix[j - 1]![i - 1]! + indicator // substitution
         );
       }
     }
 
-    return (matrix[str2.length] as number[])[str1.length] as number;
+    return matrix[str2.length]![str1.length]!;
   }
 
   /**

@@ -1,0 +1,63 @@
+name: Claude Code Assistant
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: read
+
+jobs:
+  claude-pr-assistant:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          additional_permissions: |
+            actions: read
+          trigger_phrase: "@claude-code"
+          use_sticky_comment: true
+          max_turns: "8"
+          allowed_tools: |
+            Bash(npm install)
+            Bash(npm run build)
+            Bash(npm run test)
+            Edit
+            Replace
+            NotebookEditCell
+            mcp__github_ci__get_ci_status
+            mcp__github_ci__get_workflow_run_details
+            mcp__github_ci__download_job_log
+            mcp__sequential-thinking__sequentialthinking
+          mcp_config: |
+            {
+              "mcpServers": {
+                "sequential-thinking": {
+                  "command": "npx",
+                  "args": [
+                    "-y",
+                    "@modelcontextprotocol/server-sequential-thinking"
+                  ]
+                }
+              }
+            }
+          custom_instructions: |
+            - If CI is failing, always analyze recent logs and summarize the root cause before proposing fixes.
+            - If the PR is a bugfix, verify the bug is actually resolved, and ensure a regression test is present or propose one.
+            - For TypeScript/lint errors, auto-fix and push changes if possible.
+            - For config/env PRs, check all .env/example variables are actually referenced in code.
+            - For feature/refactor PRs, check for missing docs, edge cases, and code clarity.
+            - Use sequential thinking to break down complex tasks into subtasks and update your progress as you complete each.
+            - Always update a sticky comment with checkboxes for each identified task and mark them as done as you proceed.
+            - If a change is out of scope or unsafe, summarize the reason for human review.
