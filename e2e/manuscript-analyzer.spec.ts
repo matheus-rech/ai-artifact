@@ -288,11 +288,11 @@ test.describe('Manuscript Diff Analyzer', () => {
     }
     await expect(page.getByText('Custom LCS Algorithm')).toBeVisible();
     
-    const lcsStartTime = Date.now();
+    const lcsStartTime = await page.evaluate(() => performance.now());
     const analysisButton = page.getByRole('button', { name: /Run Multi-Agent Analysis/i });
     await analysisButton.click();
     await expect(page.getByText(/Analyzing/i)).not.toBeVisible({ timeout: 60000 });
-    const lcsEndTime = Date.now();
+    const lcsEndTime = await page.evaluate(() => performance.now());
     const lcsTime = lcsEndTime - lcsStartTime;
     
     await page.getByRole('navigation').getByRole('button', { name: 'Upload Documents' }).click();
