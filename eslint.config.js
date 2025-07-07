@@ -43,17 +43,22 @@ export default [
         },
       ],
       '@typescript-eslint/consistent-type-imports': 'warn',
-      '@typescript-eslint/no-explicit-any': 'off',
+      // Allow any in specific cases where type inference is complex
+      '@typescript-eslint/no-explicit-any': 'warn',
+      // Keep unsafe rules relaxed for external APIs and complex integrations
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-return': 'off',
       '@typescript-eslint/no-unsafe-argument': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
-      '@typescript-eslint/require-await': 'off',
+      // Warn about async functions without await
+      '@typescript-eslint/require-await': 'warn',
+      // Keep function return types optional for now to avoid massive changes
       '@typescript-eslint/explicit-function-return-type': 'off',
-      '@typescript-eslint/no-misused-promises': 'off',
+      '@typescript-eslint/no-misused-promises': 'warn',
       'react/no-unescaped-entities': 'off',
-      'no-console': 'off',
+      // Allow console but warn about it
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
 ];

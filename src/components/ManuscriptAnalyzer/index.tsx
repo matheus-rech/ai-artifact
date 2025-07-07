@@ -18,7 +18,7 @@ import { DiffViewer } from './DiffViewer';
 import { AnalysisPanel } from './AnalysisPanel';
 import { AgentStatusIndicator } from './AgentStatusIndicator';
 import { ErrorBoundary } from '../common/ErrorBoundary';
-import type { AnalysisTab, DiffGranularity, AppConfig } from '@/types';
+import type { AnalysisTab, DiffGranularity, AppConfig, AgentMode } from '@/types';
 import { cn } from '@/utils';
 
 const ManuscriptAnalyzer: React.FC = () => {
@@ -27,7 +27,7 @@ const ManuscriptAnalyzer: React.FC = () => {
   const [diffGranularity, setDiffGranularity] = useState<DiffGranularity>('sentence');
   const [config, setConfig] = useState<AppConfig>({
     useClaudeAPI: process.env['NEXT_PUBLIC_USE_CLAUDE_API'] === 'true',
-    agentMode: (process.env['NEXT_PUBLIC_AGENT_MODE'] as any) || 'heuristic',
+    agentMode: (process.env['NEXT_PUBLIC_AGENT_MODE'] as AgentMode) || 'heuristic',
     apiTimeout: parseInt(process.env['NEXT_PUBLIC_API_TIMEOUT'] || '30000', 10),
     maxRetries: parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10),
     maxTextLength: 1000000,
@@ -96,6 +96,13 @@ const ManuscriptAnalyzer: React.FC = () => {
       console.error('Analysis failed:', error);
     }
   }, [validation, diffComputation, multiAgentAnalysis, diffGranularity]);
+
+  /**
+   * Handle run analysis button click
+   */
+  const handleRunAnalysisClick = (): void => {
+    void runAnalysis();
+  };
 
   /**
    * Reset all analysis state
@@ -308,7 +315,7 @@ const ManuscriptAnalyzer: React.FC = () => {
 
               <div className="flex justify-center">
                 <button
-                  onClick={runAnalysis}
+                  onClick={handleRunAnalysisClick}
                   disabled={!isAnalysisReady || isAnalyzing}
                   className={cn(
                     'px-8 py-3 rounded-lg font-medium flex items-center space-x-2',
