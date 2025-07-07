@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { DiffItem, AnalysisItem } from '@/types';
+import { generateId } from '@/utils';
 
 /**
  * Type definitions for Claude API interactions
@@ -14,11 +15,16 @@ interface ClaudeAPIRequest {
   temperature?: number;
 }
 
-interface ClaudeAnalysisRequest {
-  type: 'segmentation' | 'alignment';
-  diffs: DiffItem[];
-  reviewerRequests?: string;
+interface ClaudeAnalysisResponse {
+  diffId: string;
+  section: string;
+  priority: string;
+  assessment: string;
+  comment: string;
+  confidence: number;
+  reviewerPoint?: string;
 }
+
 
 /**
  * Service for interacting with Claude API
@@ -36,27 +42,14 @@ export class ClaudeAPIService {
 
   private initializeAPI(): void {
     const apiKey = process.env['ANTHROPIC_API_KEY'];
- devin/1751845727-add-env-example
-
-    if (apiKey) {
-      this.anthropic = new Anthropic({
-        apiKey,
-        dangerouslyAllowBrowser: process.env['NEXT_PUBLIC_ALLOW_BROWSER'] === 'true', // Controlled via environment variable
-      });
-    } else if (typeof window !== 'undefined' && 'claude' in window) {
-
     const isBrowser = typeof window !== 'undefined';
 
     if (apiKey && !isBrowser) {
       // Server-side execution – safe to create the SDK client.
       this.anthropic = new Anthropic({ apiKey });
- devin/1751828946-production-fixes
-
-    } else if (isBrowser && typeof window !== 'undefined' && window.claude) {
+    } else if (isBrowser && typeof window !== 'undefined' && (window as any).claude) {
       // Client-side fallback (e.g. window.claude injected for demos).
- main
-      this.fallbackToWindowClaude = true;
- main
+      console.log('Window claude detected for fallback');
     } else {
       console.warn(
         'No Claude API configuration found. This service should only be used server-side.'
@@ -83,64 +76,17 @@ export class ClaudeAPIService {
       maxRetries = envRetries || ClaudeAPIService.DEFAULT_MAX_RETRIES;
     }
 
-    let apiTimeout: number;
     if (envTimeoutRaw !== undefined && (!Number.isFinite(envTimeout) || envTimeout <= 0)) {
       console.warn(
         `[claudeApiService] Invalid NEXT_PUBLIC_API_TIMEOUT value "${envTimeoutRaw}" – using default ${ClaudeAPIService.DEFAULT_API_TIMEOUT}`
       );
-      apiTimeout = ClaudeAPIService.DEFAULT_API_TIMEOUT;
-    } else {
-      apiTimeout = envTimeout || ClaudeAPIService.DEFAULT_API_TIMEOUT;
     }
 
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
- devin/1751828946-production-fixes
-        if (!this.anthropic) {
-          throw new Error('Claude API not initialized. Check API key configuration.');
-        }
-
-        const response = await this.anthropic.messages.create({
-          model: 'claude-3-5-sonnet-latest',
-          messages: request.messages,
-          system: request.system,
-          max_tokens: request.max_tokens || 4096,
-          temperature: request.temperature || 0,
-        });
-
-        if (response.content && response.content.length > 0 && response.content[0].type === 'text') {
-          return response.content[0].text;
-
-        if (this.anthropic && typeof window === 'undefined') {
-          // Use Anthropic SDK on the server
-          // Note: The actual SDK call should be implemented here if you want to call Anthropic directly server-side.
-          throw new Error('Direct Anthropic SDK calls not implemented in this method. Use a backend endpoint instead.');
-        } else if (this.fallbackToWindowClaude && typeof window !== 'undefined' && window.claude) {
-          // Use window.claude in the browser (for demos)
-          const response = await Promise.race([
- devin/1751845727-add-env-example
-            this.anthropic.messages.create({
-              model: 'claude-3-sonnet-20240229',
-              max_tokens: request.maxTokens || 4000,
-              temperature: request.temperature || 0.3,
-              messages: [
-                {
-                  role: 'user',
-                  content: request.prompt,
-                },
-              ],
-            }),
-
-            window.claude.complete(request.prompt),
- main
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Request timeout')), timeout)
-            ),
-          ]);
-          return response;
-        } else if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined') {
           // In browser, call the backend API endpoint
           const response = await fetch('/api/claude', {
             method: 'POST',
@@ -154,31 +100,13 @@ export class ClaudeAPIService {
             const errorData = await response.json();
             throw new Error(`API error: ${errorData.error || response.statusText}`);
           }
- devin/1751845727-add-env-example
-          throw new Error('Invalid response format');
-        } else if (this.fallbackToWindowClaude) {
-          // Use window.claude for artifacts
-          const response = await Promise.race([
-            (window as any).claude.complete(request.prompt),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Request timeout')), timeout)
-            ),
-          ]);
-
-          return response;
-
 
           const data = await response.json();
           return data.content;
- main
         } else {
-          throw new Error('Claude API not available');
- main
+          throw new Error('Claude API not available in this environment');
         }
-
-        throw new Error('Invalid response format from Claude API');
       } catch (error) {
- devin/1751828946-production-fixes
         lastError = error as Error;
         console.warn(`Claude API attempt ${attempt + 1} failed:`, error);
 
@@ -190,20 +118,6 @@ export class ClaudeAPIService {
             error.message.includes('401'))
         ) {
           break;
-
-        console.error(`Claude API attempt ${attempt} failed:`, error);
-
-        if (attempt === maxRetries) {
-          throw new Error(
- devin/1751845727-add-env-example
-            `Claude API failed after ${maxRetries} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`
-
-            `Claude API failed after ${maxRetries} attempts: ${
-              error instanceof Error ? error.message : 'Unknown error'
-            }`
- main
-          );
- main
         }
 
         // Wait before retrying
@@ -258,21 +172,11 @@ Respond with a JSON array where each item has:
 }`;
 
     try {
- devin/1751828946-production-fixes
       const response = await this.sendRequest({
         messages: [{ role: 'user', content: userPrompt }],
         system: systemPrompt,
         temperature: 0,
-
-      const startTime = Date.now();
-      const response = await this.sendRequest({ prompt });
-      const analysisTime = Date.now() - startTime;
-
- devin/1751845727-add-env-example
-      console.log(`Claude API analysis completed in ${analysisTime}ms`);
-
-      console.warn(`Claude API analysis completed in ${analysisTime}ms`);
- main
+      });
 
       // Robust JSON parsing with validation
       let analyses: ClaudeAnalysisResponse[];
@@ -281,15 +185,12 @@ Respond with a JSON array where each item has:
           .trim()
           .replace(/^```json\s*/, '')
           .replace(/\s*```$/, '');
- devin/1751845727-add-env-example
-        analyses = JSON.parse(cleanedResponse);
-
+        
         const parsed = JSON.parse(cleanedResponse) as unknown;
         if (!Array.isArray(parsed)) {
           throw new Error('Expected array response from Claude API');
         }
         analyses = parsed as ClaudeAnalysisResponse[];
- main
       } catch (parseError) {
         console.error('JSON parsing failed:', parseError);
         console.error('Raw response:', response);
@@ -299,10 +200,7 @@ Respond with a JSON array where each item has:
       // Validate and enhance each analysis
       return analyses.map((analysis, index) => {
         const diffItem = diffs.find((d) => d.id === analysis.diffId) || diffs[index];
- devin/1751845727-add-env-example
 
-
- main
         return {
           analysisId: generateId('claude-seg'),
           diffId: analysis.diffId || diffItem?.id || `unknown-${index}`,
@@ -316,11 +214,7 @@ Respond with a JSON array where each item has:
           confidence: Math.min(Math.max(analysis.confidence || 0.5, 0), 1),
           timestamp: new Date().toISOString(),
         };
- main
       });
-
-      const analyses = this.parseAnalysisResponse(response, diffs);
-      return analyses;
     } catch (error) {
       console.error('Diff segmentation analysis failed:', error);
       throw error;
@@ -378,7 +272,6 @@ Analyze alignment and respond with a JSON array where each item has:
         temperature: 0,
       });
 
- devin/1751828946-production-fixes
       const analyses = this.parseAlignmentResponse(response, diffs);
       return analyses;
     } catch (error) {
@@ -415,59 +308,11 @@ Analyze alignment and respond with a JSON array where each item has:
         assessment: item.assessment as 'positive' | 'negative' | 'neutral',
         comment: item.comment,
         confidence: item.confidence || 0.8,
+        changeType: 'unknown',
+        reviewerPoint: item.comment,
+        relatedText: '',
+        timestamp: new Date().toISOString(),
       }));
-
- devin/1751845727-add-env-example
-      console.log(`Claude reviewer alignment analysis completed in ${analysisTime}ms`);
-
-      let analyses: any[];
-
-      console.warn(`Claude reviewer alignment analysis completed in ${analysisTime}ms`);
-
-      let analyses: ClaudeReviewerResponse[];
- main
-      try {
-        const cleanedResponse = response
-          .trim()
-          .replace(/^```json\s*/, '')
-          .replace(/\s*```$/, '');
- devin/1751845727-add-env-example
-        analyses = JSON.parse(cleanedResponse);
-
-        const parsed = JSON.parse(cleanedResponse) as unknown;
-        if (!Array.isArray(parsed)) {
-          throw new Error('Expected array response from Claude API');
-        }
-        analyses = parsed as ClaudeReviewerResponse[];
- main
-      } catch (parseError) {
-        console.error('JSON parsing failed for reviewer alignment:', parseError);
-        throw new Error('Invalid JSON response from Claude API');
-      }
-
-      return analyses
-        .filter((analysis) => analysis.alignmentScore > 25) // Filter low-relevance items
-        .map((analysis, index) => {
-          const diffItem = diffs.find((d) => d.id === analysis.diffId);
- devin/1751845727-add-env-example
-
-
- main
-          return {
-            analysisId: generateId('claude-rev'),
-            diffId: analysis.diffId || `rev-${index}`,
-            section: this.validateSection(analysis.section),
-            changeType: diffItem?.type || 'unknown',
-            reviewerPoint: analysis.reviewerPoint || 'Addresses reviewer concerns',
-            assessment: this.validateAssessment(analysis.assessment),
-            comment: analysis.comment || 'Responds to reviewer feedback',
-            relatedText: (diffItem?.text || '').slice(0, 60),
-            priority: this.validatePriority(analysis.priority),
-            confidence: Math.min(Math.max(analysis.confidence || 0.7, 0), 1),
-            timestamp: new Date().toISOString(),
-          };
-        });
- main
     } catch (error) {
       console.error('Failed to parse Claude response:', error);
       throw new Error('Failed to parse analysis response');
@@ -497,12 +342,14 @@ Analyze alignment and respond with a JSON array where each item has:
         analysisId: `claude-align-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         diffId: item.diffId,
         section: 'Review Alignment',
+        changeType: 'unknown',
         priority: item.alignmentScore > 80 ? 'high' : item.alignmentScore > 50 ? 'medium' : 'low',
         assessment: item.alignmentScore > 70 ? 'positive' : item.alignmentScore > 40 ? 'neutral' : 'negative',
         comment: item.comment,
         confidence: item.confidence || 0.8,
         reviewerPoint: item.reviewerPoint,
-        alignmentScore: item.alignmentScore,
+        relatedText: '',
+        timestamp: new Date().toISOString(),
       }));
     } catch (error) {
       console.error('Failed to parse Claude response:', error);
@@ -525,6 +372,30 @@ Analyze alignment and respond with a JSON array where each item has:
       available: this.isAvailable(),
       method: this.anthropic ? 'SDK' : 'None',
     };
+  }
+
+  /**
+   * Validate section name
+   */
+  private validateSection(section: string): string {
+    const validSections = ['Abstract', 'Introduction', 'Methods', 'Results', 'Discussion', 'Conclusions', 'References', 'Other'];
+    return validSections.includes(section) ? section : 'Other';
+  }
+
+  /**
+   * Validate assessment
+   */
+  private validateAssessment(assessment: string): 'positive' | 'negative' | 'neutral' {
+    const validAssessments = ['positive', 'negative', 'neutral'];
+    return validAssessments.includes(assessment) ? assessment as 'positive' | 'negative' | 'neutral' : 'neutral';
+  }
+
+  /**
+   * Validate priority
+   */
+  private validatePriority(priority: string): 'high' | 'medium' | 'low' {
+    const validPriorities = ['high', 'medium', 'low'];
+    return validPriorities.includes(priority) ? priority as 'high' | 'medium' | 'low' : 'medium';
   }
 }
 

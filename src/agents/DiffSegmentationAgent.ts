@@ -11,16 +11,6 @@ export class DiffSegmentationAgent extends BaseAgent<
   DiffSegmentationInput,
   DiffSegmentationOutput
 > {
- devin/1751828946-production-fixes
-
- devin/1751845727-add-env-example
-
- devin/1751831368-production-fixes
-]
- main
-  private claudeAPI: ClaudeAPIService;
- main
- main
   private fallbackService: FallbackService;
 
   constructor(config: AgentConfig) {
@@ -38,30 +28,11 @@ export class DiffSegmentationAgent extends BaseAgent<
       throw new Error(result.error || 'Segmentation analysis failed');
     }
 
- devin/1751828946-production-fixes
-
-    // Use Claude API for intelligent analysis
-    const analyses = await this.claudeAPI.analyzeDiffSegmentation(input.diffs);
- devin/1751845727-add-env-example
-
- main
- main
-
- main
     this.updateStatus('running', 60, 'Creating summary...');
     const summary = this.createSummary(result.data.analyses);
 
     return {
       analyses: result.data.analyses,
- devin/1751828946-production-fixes
-
-
-      analyses,
- devin/1751845727-add-env-example
-
- main
- main
- main
       summary,
     };
   }
@@ -113,7 +84,35 @@ export class DiffSegmentationAgent extends BaseAgent<
     };
   }
 
-  isAvailable(): boolean {
+  protected async validateInput(input: DiffSegmentationInput): Promise<void> {
+    if (!input.diffs || !Array.isArray(input.diffs)) {
+      throw new Error('Invalid input: diffs must be an array');
+    }
+    if (input.diffs.length === 0) {
+      throw new Error('Invalid input: diffs array cannot be empty');
+    }
+  }
+
+  protected async validateOutput(output: DiffSegmentationOutput): Promise<void> {
+    if (!output.analyses || !Array.isArray(output.analyses)) {
+      throw new Error('Invalid output: analyses must be an array');
+    }
+    if (!output.summary || typeof output.summary !== 'object') {
+      throw new Error('Invalid output: summary must be an object');
+    }
+  }
+
+  protected calculateConfidence(result: DiffSegmentationOutput): number {
+    if (result.analyses.length === 0) return 0;
+    
+    // Calculate confidence based on analysis quality
+    const avgConfidence = result.summary.averageConfidence;
+    const completeness = Math.min(result.analyses.length / 10, 1); // Normalize to max 10 analyses
+    
+    return Math.min(avgConfidence * completeness, 1);
+  }
+
+  override isAvailable(): boolean {
     return true; // Always available with fallback
   }
 

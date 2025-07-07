@@ -6,7 +6,7 @@ export async function runDiffEngineBenchmarks(): Promise<{
   results: BenchmarkResult[];
   report: string;
   recommendation: string;
- {
+}> {
   const benchmark = new PerformanceBenchmark();
   const diffEngine = new DiffEngine();
   const dmpEngine = new DiffMatchPatchEngine();
@@ -283,4 +283,3 @@ export async function runBenchmarks(): Promise<void> {
 
   console.warn(report);
 }
- main
