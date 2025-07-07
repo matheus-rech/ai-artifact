@@ -34,7 +34,7 @@ test.describe('Diff Engine Integration Tests', () => {
 
   for (const engine of ['LCS', 'DMP']) {
     test.describe(`${engine} Engine Tests`, () => {
-      for (const { name, original, revised, expectedDiffs } of testCases) {
+      for (const { name, original, revised } of testCases) {
         test(`${engine}: ${name}`, async ({ page }) => {
           await page.click('text=Upload Documents');
           
@@ -60,7 +60,7 @@ test.describe('Diff Engine Integration Tests', () => {
           const diffCount = await diffElements.count();
           expect(diffCount).toBeGreaterThan(0);
           
-          console.log(`${engine} engine processed "${name}" with ${diffCount} diff elements`);
+          console.warn(`${engine} engine processed "${name}" with ${diffCount} diff elements`);
         });
       }
       
@@ -83,7 +83,7 @@ test.describe('Diff Engine Integration Tests', () => {
         const endTime = Date.now();
         
         const analysisTime = endTime - startTime;
-        console.log(`${engine} engine performance: ${analysisTime}ms for large text`);
+        console.warn(`${engine} engine performance: ${analysisTime}ms for large text`);
         
         await page.click('text=Review Results');
         const diffElements = page.locator('[data-testid="diff-item"], .diff-item, .bg-red-50, .bg-green-50');
