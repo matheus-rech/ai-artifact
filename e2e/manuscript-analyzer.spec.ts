@@ -303,10 +303,10 @@ test.describe('Manuscript Diff Analyzer', () => {
     await page.locator('textarea').nth(0).fill(longOriginalText);
     await page.locator('textarea').nth(1).fill(longRevisedText);
     
-    const dmpStartTime = Date.now();
+    const dmpStartTime = await page.evaluate(() => performance.now());
     await analysisButton.click();
     await expect(page.getByText(/Analyzing/i)).not.toBeVisible({ timeout: 60000 });
-    const dmpEndTime = Date.now();
+    const dmpEndTime = await page.evaluate(() => performance.now());
     const dmpTime = dmpEndTime - dmpStartTime;
     
     expect(lcsTime).toBeLessThan(60000); // Less than 60 seconds
