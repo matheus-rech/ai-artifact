@@ -30,12 +30,20 @@ jobs:
       - name: Run TypeScript type check
         run: npm run type-check
 
+ devin/1751849069-add-diff-engine-toggle
+
       # Disabled linting and formatting checks due to pre-existing issues
+ main
       # - name: Run linting
       #   run: npm run lint
 
       # - name: Run format check
       #   run: npm run format:check
+ devin/1751849069-add-diff-engine-toggle
+
+# Trigger CI rerun: whitespace change
+
+ main
 
       - name: Run unit tests
         run: npm run test:ci
@@ -95,5 +103,9 @@ jobs:
         run: npm audit --audit-level high
         continue-on-error: true
 
+ devin/1751849069-add-diff-engine-toggle
+      - name: Check for vulnerabilities
+
       - name: Run security audit (moderate)
+ main
         run: npm audit --audit-level moderate

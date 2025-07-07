@@ -1,5 +1,8 @@
+ devin/1751849069-add-diff-engine-toggle
+import React, { Component, type ReactNode } from 'react';=======
 import React, { Component } from 'react';
 import type { ReactNode } from 'react';
+ main
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface ErrorBoundaryState {

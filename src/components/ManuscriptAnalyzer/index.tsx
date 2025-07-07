@@ -33,10 +33,14 @@ const ManuscriptAnalyzer: React.FC = () => {
     maxRetries: parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10),
     maxTextLength: 1000000,
     minDiffLength: 3,
+ devin/1751849069-add-diff-engine-toggle
+    useDiffMatchPatch: false
+
 
     useDiffMatchPatch: false
 
     useDiffMatchPatch: true
+ main
  main
   });
 
@@ -319,6 +323,10 @@ const ManuscriptAnalyzer: React.FC = () => {
                     ))}
                   </div>
                 )}
+              </div>
+
+              <div className="bg-white rounded-lg shadow p-6 border-t-4 border-indigo-500">
+                <AdvancedSettings config={config} onConfigChange={updateConfig} />
               </div>
 
               <div className="flex justify-center">

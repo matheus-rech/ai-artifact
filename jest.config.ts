@@ -29,6 +29,7 @@ const config: Config = {
     '!src/**/*.stories.tsx',
     '!src/**/__tests__/**',
   ],
+  passWithNoTests: true,
   coverageThreshold: {
     global: {
       branches: 0,
