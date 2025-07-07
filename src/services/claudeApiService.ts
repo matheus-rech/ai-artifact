@@ -93,26 +93,18 @@ export class ClaudeAPIService {
   private initializeAPI(): void {
     const apiKey = process.env['ANTHROPIC_API_KEY'];
 
- copilot/fix-de6054fd-2fa5-455a-9ae6-5deafea88d4d
-    if (apiKey) {
-
     // Never bundle the Claude API key in client-side code. Only instantiate the SDK
     // when running on the server.
     const isBrowser = typeof window !== 'undefined';
 
     if (apiKey && !isBrowser) {
       // Server-side execution – safe to create the SDK client.
- main
       this.anthropic = new Anthropic({
         apiKey,
         dangerouslyAllowBrowser: process.env['NEXT_PUBLIC_ALLOW_BROWSER'] === 'true', // Controlled via environment variable
       });
- copilot/fix-de6054fd-2fa5-455a-9ae6-5deafea88d4d
-    } else if (typeof window !== 'undefined' && window.claude) {
-
     } else if (isBrowser && 'claude' in window) {
       // Client-side fallback (e.g. window.claude injected for demos).
- main
       this.fallbackToWindowClaude = true;
     } else {
       console.warn('No Claude API configuration found. Falling back to heuristic analysis.');
@@ -181,11 +173,7 @@ export class ClaudeAPIService {
             return response.content[0].text;
           }
           throw new Error('Invalid response format');
- copilot/fix-de6054fd-2fa5-455a-9ae6-5deafea88d4d
-        } else if (this.fallbackToWindowClaude && typeof window !== 'undefined' && window.claude) {
-
         } else if (this.fallbackToWindowClaude && window.claude) {
- main
           // Use window.claude for artifacts
           const response = await Promise.race([
             window.claude.complete(request.prompt),
@@ -284,7 +272,6 @@ CRITICAL: Return ONLY the JSON array. No markdown, no explanations, no additiona
           .trim()
           .replace(/^```json\s*/, '')
           .replace(/\s*```$/, '');
- copilot/fix-de6054fd-2fa5-455a-9ae6-5deafea88d4d
         const parsed = JSON.parse(cleanedResponse) as unknown;
 
         if (!Array.isArray(parsed)) {
@@ -294,13 +281,7 @@ CRITICAL: Return ONLY the JSON array. No markdown, no explanations, no additiona
         analyses = parsed as ClaudeAnalysisResponse[];
       } catch (parseError) {
         console.error('JSON parsing failed:', parseError);
-        console.warn('Raw response:', response);
-
-        analyses = JSON.parse(cleanedResponse) as ClaudeAnalysisResponse[];
-      } catch (parseError) {
-        console.error('JSON parsing failed:', parseError);
         console.error('Raw response:', response);
- main
         throw new Error('Invalid JSON response from Claude API');
       }
 
@@ -402,7 +383,6 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
           .trim()
           .replace(/^```json\s*/, '')
           .replace(/\s*```$/, '');
- copilot/fix-de6054fd-2fa5-455a-9ae6-5deafea88d4d
         const parsed = JSON.parse(cleanedResponse) as unknown;
 
         if (!Array.isArray(parsed)) {
@@ -410,19 +390,13 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
         }
 
         analyses = parsed as ClaudeReviewerResponse[];
-
-        analyses = JSON.parse(cleanedResponse) as ClaudeReviewerResponse[];
- main
       } catch (parseError) {
         console.error('JSON parsing failed for reviewer alignment:', parseError);
         throw new Error('Invalid JSON response from Claude API');
       }
 
       return analyses
- copilot/fix-de6054fd-2fa5-455a-9ae6-5deafea88d4d
-        .filter((analysis) => (analysis.alignmentScore || 0) > 25) // Filter low-relevance items
-
-        .filter((analysis) => analysis.alignmentScore > 25) // Filter low-relevance items main
+        .filter((analysis) => analysis.alignmentScore > 25) // Filter low-relevance items
         .map((analysis, index) => {
           const diffItem = diffs.find((d) => d.id === analysis.diffId);
 

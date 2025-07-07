@@ -17,6 +17,7 @@ import { FileUploadArea } from './FileUploadArea';
 import { DiffViewer } from './DiffViewer';
 import { AnalysisPanel } from './AnalysisPanel';
 import { AgentStatusIndicator } from './AgentStatusIndicator';
+import { AdvancedSettings } from './AdvancedSettings';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import type { AnalysisTab, DiffGranularity, AppConfig, AgentMode } from '@/types';
 import { cn } from '@/utils';
@@ -32,11 +33,12 @@ const ManuscriptAnalyzer: React.FC = () => {
     maxRetries: parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10),
     maxTextLength: 1000000,
     minDiffLength: 3,
+    useDiffMatchPatch: false,
   });
 
   // Custom hooks
   const validation = useManuscriptValidation();
-  const diffComputation = useDiffComputation();
+  const diffComputation = useDiffComputation(config.useDiffMatchPatch);
   const multiAgentAnalysis = useMultiAgentAnalysis();
 
   /**
@@ -170,6 +172,9 @@ const ManuscriptAnalyzer: React.FC = () => {
                     <span className="ml-2 text-sm text-gray-600">Claude AI Analysis</span>
                   </label>
                 </div>
+
+                {/* Advanced Settings */}
+                <AdvancedSettings config={config} updateConfig={updateConfig} />
 
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-600">Granularity:</span>
