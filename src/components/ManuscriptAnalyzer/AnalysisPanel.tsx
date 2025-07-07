@@ -35,6 +35,10 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     }
   };
 
+  const handleRetryClick = (): void => {
+    void handleRetryAnalysis();
+  };
+
   const getAssessmentColor = (assessment: string): string => {
     switch (assessment) {
       case 'positive':
@@ -79,7 +83,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           Run the multi-agent analysis to see detailed insights about your manuscript changes.
         </p>
         <button
-          onClick={handleRetryAnalysis}
+          onClick={handleRetryClick}
           disabled={isRetrying}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
@@ -374,7 +378,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           </button>
 
           <button
-            onClick={handleRetryAnalysis}
+            onClick={handleRetryClick}
             disabled={isRetrying}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
           >
