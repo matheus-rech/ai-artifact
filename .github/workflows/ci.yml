@@ -30,11 +30,10 @@ jobs:
       - name: Run TypeScript type check
         run: npm run type-check
 
-      # Temporarily disabled due to ESLint v9+ configuration issues
+      # Disabled linting and formatting checks due to pre-existing issues
       # - name: Run linting
       #   run: npm run lint
 
-      # Temporarily disabled due to ESLint v9+ configuration issues
       # - name: Run format check
       #   run: npm run format:check
 
@@ -96,10 +95,5 @@ jobs:
         run: npm audit --audit-level high
         continue-on-error: true
 
- devin/1751855402-toggle-diff-engine
-      - name: Check for vulnerabilities
-        run: npm audit --audit-level moderate
-
       - name: Run security audit (moderate)
         run: npm audit --audit-level moderate
- main
