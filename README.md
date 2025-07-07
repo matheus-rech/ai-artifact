@@ -1,13 +1,13 @@
-# AI Manuscript Diff Analyzer
+# AI Artifact - Manuscript Diff Analyzer
 
-A production-ready Next.js application for analyzing academic manuscript revisions using multi-agent AI workflow. This tool helps researchers and editors understand changes between manuscript versions and their alignment with reviewer requests.
+A production-ready Next.js application for analyzing academic manuscript revisions using multi-agent AI analysis. This tool helps researchers and editors understand changes between manuscript versions and assess alignment with reviewer requests.
 
 ## Features
 
 - **Multi-Agent Analysis**: Intelligent diff segmentation and reviewer alignment analysis
-- **Secure API Architecture**: Backend API endpoints with proper API key handling
-- **Academic Focus**: Specialized for manuscript sections (Abstract, Methods, Results, etc.)
-- **Production Ready**: Comprehensive error handling, validation, and deployment configs
+- **Secure API Architecture**: Server-side API key handling with secure backend endpoints
+- **Production Ready**: Comprehensive error handling, validation, and deployment configurations
+- **Academic Focus**: Specialized for academic manuscript analysis with section detection and priority assessment
 
 ## Getting Started
 
@@ -19,27 +19,43 @@ Copy the `.env.example` file to `.env.local` and configure your environment:
 cp .env.example .env.local
 ```
 
-Edit `.env.local` and add your API key from [Anthropic Console](https://console.anthropic.com/settings/keys):
+Edit `.env.local` and add your Anthropic API key from [Anthropic Console](https://console.anthropic.com/settings/keys):
 
 ```env
+# Required: Anthropic API Configuration
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# Optional: Application Configuration
 NEXT_PUBLIC_USE_CLAUDE_API=true
-NEXT_PUBLIC_AGENT_MODE=production
+NEXT_PUBLIC_AGENT_MODE=intelligent
+NEXT_PUBLIC_API_TIMEOUT=30000
+NEXT_PUBLIC_MAX_RETRIES=3
+
+# Development Configuration
+NODE_ENV=development
 ```
 
 ### 2. Install Dependencies
 
 ```bash
 npm install
+# or
+yarn install
+# or
+pnpm install
 ```
 
 ### 3. Run Development Server
 
 ```bash
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
+Open [http://localhost:3000](http://localhost:3000) with your browser to access the application.
 
 ### 4. Health Check
 
@@ -48,7 +64,9 @@ Verify your setup by visiting the health endpoint:
 
 ## API Endpoints
 
-### POST /api/analyze
+The application provides secure backend API endpoints for manuscript analysis:
+
+### POST `/api/analyze`
 Analyzes manuscript diffs using AI agents.
 
 **Request Body:**
@@ -60,23 +78,86 @@ Analyzes manuscript diffs using AI agents.
 }
 ```
 
-### GET /api/health
+### POST `/api/analyze-diffs`
+Analyzes manuscript diffs for section categorization and priority assessment.
+
+**Request Body:**
+```json
+{
+  "diffs": [
+    {
+      "id": "diff-1",
+      "type": "addition|deletion|modification",
+      "text": "The changed text content",
+      "confidence": 0.85,
+      "originalPos": 10,
+      "revisedPos": 15,
+      "context": "Surrounding text context"
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "analysisId": "claude-seg-123",
+      "diffId": "diff-1",
+      "section": "Methods",
+      "priority": "high",
+      "assessment": "positive",
+      "comment": "Detailed analysis comment",
+      "confidence": 0.85
+    }
+  ]
+}
+```
+
+### POST `/api/analyze-alignment`
+Analyzes alignment between manuscript changes and reviewer requests.
+
+**Request Body:**
+```json
+{
+  "diffs": [
+    {
+      "file": "example.py",
+      "line": 10,
+      "old": "print('Hello')",
+      "new": "print('Hello, world!')"
+    }
+  ],
+  "reviewerRequests": "Detailed reviewer feedback and requests"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "analysisId": "claude-rev-123",
+      "diffId": "diff-1",
+      "alignmentScore": 85,
+      "reviewerPoint": "Specific request addressed",
+      "comment": "How this change responds to reviewer concerns"
+    }
+  ]
+}
+```
+
+### GET `/api/health`
 Returns application health status and service availability.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
 ## Production Deployment
 
-### Environment Variables
+### Environment Variables for Production
 
-Required environment variables for production:
+Ensure these environment variables are set in your production environment:
 
 ```env
 # Required
@@ -103,34 +184,59 @@ NODE_ENV=production
 #### Docker
 ```bash
 # Build and run with Docker
-docker build -t manuscript-analyzer .
-docker run -p 3000:3000 --env-file .env.local manuscript-analyzer
+docker build -t ai-artifact .
+docker run -p 3000:3000 --env-file .env.local ai-artifact
 ```
 
 #### Docker Compose
 ```bash
+# Set ANTHROPIC_API_KEY in your environment
+export ANTHROPIC_API_KEY=your_key_here
+
 # Run with docker-compose
 docker-compose up --build
 ```
 
-### Security Features
+## Security Features
 
- devin/1751831368-production-fixes
-✅ **Secure API Architecture**: API keys are never exposed to the client-side  
+✅ **Secure API Key Handling**: API keys are handled server-side only, never exposed to the browser  
 ✅ **Backend API Endpoints**: All AI processing happens server-side  
-✅ **Input Validation**: Comprehensive request validation and sanitization  
-✅ **Error Handling**: Production-ready error handling and logging  
+✅ **Input Validation**: Comprehensive validation of all API inputs  
+✅ **Error Handling**: Production-ready error handling with proper HTTP status codes  
+✅ **Rate Limiting**: Built-in timeout and retry mechanisms  
 ✅ **Health Monitoring**: Built-in health check endpoints
 
+## Architecture
+
+### Multi-Agent System
+- **DiffSegmentationAgent**: Categorizes changes by manuscript section
+- **ReviewerAlignmentAgent**: Analyzes alignment with reviewer requests
+- **AnalysisOrchestrator**: Coordinates agent execution
+
+### Security Architecture
+- API keys stored server-side only
+- Secure API endpoints for AI processing
+- Input validation and sanitization
+- Comprehensive error handling
+
+### Project Structure
+
+```
+src/
+├── app/
+│   ├── api/                 # Backend API endpoints
+│   │   ├── analyze/         # Main analysis endpoint
+│   │   ├── analyze-diffs/   # Diff analysis endpoint
+│   │   ├── analyze-alignment/ # Reviewer alignment endpoint
+│   │   └── health/          # Health check endpoint
+│   └── page.tsx             # Main application page
+├── agents/                  # Multi-agent analysis system
+├── components/              # React components
+├── services/                # API and utility services
+└── types/                   # TypeScript type definitions
+```
+
 ## Development
-
-This application uses a secure backend API endpoint to handle Anthropic API calls. For production deployment:
-
-1. Set up your environment variables on your hosting platform (Vercel, etc.)
-2. Ensure `ANTHROPIC_API_KEY` is set as a server-side environment variable
-3. Configure client-side environment variables as needed (`NEXT_PUBLIC_*`)
-4. Deploy using the instructions below
- main
 
 ### Available Scripts
 
@@ -169,51 +275,28 @@ Pre-commit hooks ensure code quality:
 - TypeScript type checking
 - Husky for git hooks
 
-## Architecture
+### Testing API Endpoints
 
-### Multi-Agent System
-- **DiffSegmentationAgent**: Categorizes changes by manuscript section
-- **ReviewerAlignmentAgent**: Analyzes alignment with reviewer requests
-- **AnalysisOrchestrator**: Coordinates agent execution
+Test the endpoints locally:
 
-### Security Architecture
-- API keys stored server-side only
-- Secure API endpoints for AI processing
-- Input validation and sanitization
-- Comprehensive error handling
+```bash
+# Test diff analysis
+curl -X POST http://localhost:3000/api/analyze-diffs \
+  -H "Content-Type: application/json" \
+  -d '{"diffs": [{"id": "test", "type": "addition", "text": "Sample text"}]}'
+
+# Test reviewer alignment
+curl -X POST http://localhost:3000/api/analyze-alignment \
+  -H "Content-Type: application/json" \
+  -d '{"diffs": [...], "reviewerRequests": "Improve methodology"}'
+
+# Test health endpoint
+curl http://localhost:3000/api/health
+```
 
 ## Learn More
 
- devin/1751831368-production-fixes
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Anthropic API Documentation](https://docs.anthropic.com/)
+- [TypeScript Documentation](https://www.typescriptlang.org/docs/)
 - [Academic Writing Guidelines](https://writing.wisc.edu/handbook/)
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-## Production Deployment Guide
-
-### Vercel Deployment
-
-1. Fork or clone this repository
-2. Connect your GitHub repository to Vercel
-3. Configure the following environment variables in Vercel:
-   - `ANTHROPIC_API_KEY`: Your Anthropic API key (kept secret on the server)
-   - `API_TIMEOUT`: Timeout for API requests in milliseconds (e.g., 30000)
-   - `MAX_RETRIES`: Number of retries for failed API requests (e.g., 3)
-   - `NEXT_PUBLIC_USE_CLAUDE_API`: Whether to use Claude API (true/false)
-   - `NEXT_PUBLIC_AGENT_MODE`: Agent mode (production/heuristic/mixed)
-   - `NEXT_PUBLIC_API_TIMEOUT`: Client-side timeout setting
-   - `NEXT_PUBLIC_MAX_RETRIES`: Client-side retry setting
-4. Deploy the application
-
-### Docker Deployment
-
-A Dockerfile is not included in this repository. If you need to deploy using Docker:
-
-1. Create a Dockerfile in the root directory
-2. Build and run the Docker container with environment variables
-3. Expose the appropriate port (default: 3000)
-
-For more detailed deployment options, refer to the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying).
- main

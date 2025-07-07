@@ -33,6 +33,9 @@ const ManuscriptAnalyzer: React.FC = () => {
     maxRetries: parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10),
     maxTextLength: 1000000,
     minDiffLength: 3,
+ devin/1751828946-production-fixes
+    useDiffMatchPatch: true
+
  devin/1751845727-add-env-example
 
  devin/1751831368-production-fixes
@@ -44,6 +47,7 @@ const ManuscriptAnalyzer: React.FC = () => {
     useDiffMatchPatch: false
 
     useDiffMatchPatch: true
+ main
  main
  main
  main

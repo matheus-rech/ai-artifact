@@ -9,12 +9,14 @@ export class FallbackService {
    * Heuristic diff segmentation analysis
    */
   analyzeDiffSegmentation(diffs: DiffItem[]): AnalysisItem[] {
+ devin/1751828946-production-fixes
+
  devin/1751831368-production-fixes
     console.log('Using fallback segmentation analysis');
 
  devin/1751845727-add-env-example
-    console.warn('Using fallback segmentation analysis - Claude API unavailable');
  main
+    console.warn('Using fallback segmentation analysis - Claude API unavailable');
 
  main
     return diffs.map((d) => ({
@@ -38,6 +40,8 @@ export class FallbackService {
   analyzeReviewerAlignment(diffs: DiffItem[], requests: string): AnalysisItem[] {
     if (!requests) return [];
 
+ devin/1751828946-production-fixes
+
  devin/1751845727-add-env-example
     console.log('Using fallback reviewer alignment analysis');
 
@@ -45,8 +49,8 @@ export class FallbackService {
  devin/1751831368-production-fixes
     console.log('Using fallback reviewer alignment analysis');
 
-    console.warn('Using fallback reviewer alignment analysis - Claude API unavailable');
  main
+    console.warn('Using fallback reviewer alignment analysis - Claude API unavailable');
 
  main
     const requestsLower = requests.toLowerCase();

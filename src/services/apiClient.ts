@@ -17,113 +17,178 @@ export interface AnalyzeResponse {
   error?: string;
 }
 
+/**
+ * Client-side API service for secure communication with backend
+ */
 export class APIClient {
-  private baseUrl: string;
+  private readonly baseUrl: string;
 
   constructor() {
-    this.baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    this.baseUrl =
+      typeof window !== 'undefined' 
+        ? window.location.origin 
+        : (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3000');
   }
 
-  async analyzeSegmentation(diffs: DiffItem[]): Promise<AgentResult<{ analyses: AnalysisItem[] }>> {
-    const startTime = Date.now();
-
+  /**
+   * Analyze diffs using secure backend API
+   */
+  async analyzeDiffSegmentation(diffs: DiffItem[]): Promise<AnalysisItem[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/analyze`, {
+      const response = await fetch(`${this.baseUrl}/api/analyze-diffs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          diffs,
-          analysisType: 'segmentation',
-        }),
+        body: JSON.stringify({ diffs }),
       });
 
-      const result: AnalyzeResponse = await response.json();
-      const executionTime = Date.now() - startTime;
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || `HTTP ${response.status}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
-      return {
-        success: true,
-        data: { analyses: result.data.analyses },
-        executionTime,
-        usedFallback: false,
-        confidence: 0.9,
-      };
+      const result = await response.json();
+      return result.data || [];
     } catch (error) {
-      console.error('API segmentation analysis error:', error);
-      return {
-        success: false,
-        data: { analyses: [] },
-        error: error instanceof Error ? error.message : 'Unknown API error',
-        executionTime: Date.now() - startTime,
-        usedFallback: false,
-        confidence: 0,
-      };
+      console.error('API request failed:', error);
+      throw error;
     }
   }
 
+  /**
+   * Analyze reviewer alignment using secure backend API
+   */
   async analyzeReviewerAlignment(
     diffs: DiffItem[],
-    revisionRequests: string
-  ): Promise<AgentResult<{ analyses: AnalysisItem[] }>> {
-    const startTime = Date.now();
+    reviewerRequests: string
+  ): Promise<AnalysisItem[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/analyze-alignment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ diffs, reviewerRequests }),
+      });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result.data || [];
+    } catch (error) {
+      console.error('API request failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Unified analyze endpoint
+   */
+  async analyze(request: AnalyzeRequest): Promise<AnalyzeResponse> {
     try {
       const response = await fetch(`${this.baseUrl}/api/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          diffs,
-          revisionRequests,
-          analysisType: 'alignment',
-        }),
+        body: JSON.stringify(request),
       });
 
-      const result: AnalyzeResponse = await response.json();
-      const executionTime = Date.now() - startTime;
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || `HTTP ${response.status}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        return {
+          success: false,
+          data: {
+            analyses: [],
+            executionTime: 0,
+            analysisType: request.analysisType,
+            diffCount: request.diffs.length,
+          },
+          error: errorData.error || `HTTP error! status: ${response.status}`,
+        };
       }
 
-      return {
-        success: true,
-        data: { analyses: result.data.analyses },
-        executionTime,
-        usedFallback: false,
-        confidence: 0.9,
-      };
+      const result = await response.json();
+      return result;
     } catch (error) {
-      console.error('API reviewer alignment analysis error:', error);
+      console.error('API request failed:', error);
       return {
         success: false,
-        data: { analyses: [] },
-        error: error instanceof Error ? error.message : 'Unknown API error',
-        executionTime: Date.now() - startTime,
-        usedFallback: false,
-        confidence: 0,
+        data: {
+          analyses: [],
+          executionTime: 0,
+          analysisType: request.analysisType,
+          diffCount: request.diffs.length,
+        },
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }
 
-  async checkHealth(): Promise<{
-    status: string;
-    claudeAPI: { available: boolean; method: string };
-  }> {
+  /**
+   * Wrapper methods for compatibility
+   */
+  async analyzeSegmentation(diffs: DiffItem[]): Promise<AgentResult<{ analyses: AnalysisItem[] }>> {
+    try {
+      const analyses = await this.analyzeDiffSegmentation(diffs);
+      return {
+        success: true,
+        data: { analyses },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: { analyses: [] },
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
+  }
+
+  async analyzeAlignment(
+    diffs: DiffItem[],
+    reviewerRequests: string
+  ): Promise<AgentResult<{ analyses: AnalysisItem[] }>> {
+    try {
+      const analyses = await this.analyzeReviewerAlignment(diffs, reviewerRequests);
+      return {
+        success: true,
+        data: { analyses },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: { analyses: [] },
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
+  }
+
+  /**
+   * Health check endpoint
+   */
+  async healthCheck(): Promise<{ status: string; services: Record<string, boolean> }> {
     try {
       const response = await fetch(`${this.baseUrl}/api/health`);
+      if (!response.ok) {
+        throw new Error(`Health check failed: ${response.status}`);
+      }
       return await response.json();
     } catch (error) {
-      console.error('Health check error:', error);
-      return { status: 'error', claudeAPI: { available: false, method: 'None' } };
+      console.error('Health check failed:', error);
+      return {
+        status: 'unhealthy',
+        services: {
+          api: false,
+          claude: false,
+        },
+      };
     }
   }
 }
 
+// Export singleton instance
 export const apiClient = new APIClient();

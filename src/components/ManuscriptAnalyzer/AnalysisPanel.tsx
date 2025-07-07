@@ -245,7 +245,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
                         </div>
                         <p className="text-gray-600 mb-2">{analysis.comment}</p>
                         <p className="text-sm text-gray-500 italic mb-2">
-                          "{analysis.relatedText}..."
+                          &quot;{analysis.relatedText}...&quot;
                         </p>
                         <div className="flex items-center justify-between">
                           <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block">
@@ -293,7 +293,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
                           <p className="text-gray-600 mb-2">{analysis.comment}</p>
                           <p className="text-sm text-blue-600 mb-2">📝 {analysis.reviewerPoint}</p>
                           <p className="text-sm text-gray-500 italic">
-                            "{analysis.relatedText}..."
+                            &quot;{analysis.relatedText}...&quot;
                           </p>
                         </div>
                       </div>
