@@ -232,4 +232,100 @@ test.describe('Manuscript Diff Analyzer', () => {
     // Text should still be there
     await expect(page.locator('textarea').nth(0)).toHaveValue(testText);
   });
+
+  test('should toggle between diff engines and produce consistent results', async ({ page }) => {
+    const originalText = 'The quick brown fox jumps over the lazy dog. This is a test manuscript with multiple sentences for analysis.';
+    const revisedText = 'The quick brown fox leaps over the lazy dog. This is a test manuscript with several sentences for comprehensive analysis.';
+    
+    // Upload test manuscripts
+    await page.locator('textarea').nth(0).fill(originalText);
+    await page.locator('textarea').nth(1).fill(revisedText);
+    
+    const diffEngineCheckbox = page.getByRole('checkbox').nth(1); // Second checkbox is for diff engine
+    await expect(diffEngineCheckbox).not.toBeChecked();
+    await expect(page.getByText('Custom LCS Algorithm')).toBeVisible();
+    
+    const analysisButton = page.getByRole('button', { name: /Run Multi-Agent Analysis/i });
+    await expect(analysisButton).toBeEnabled();
+    await analysisButton.click();
+    
+    // Wait for analysis to complete
+    await expect(page.getByText(/Analyzing/i)).not.toBeVisible({ timeout: 30000 });
+    
+    // Navigate to review tab to see diffs
+    await page.getByRole('navigation').getByRole('button', { name: 'Review Results' }).click();
+    
+    await expect(page.getByText(/Analysis Summary|No differences found|Review Results/i)).toBeVisible();
+    
+    await page.getByRole('navigation').getByRole('button', { name: 'Upload Documents' }).click();
+    
+    await diffEngineCheckbox.check();
+    await expect(page.getByText('Google Diff-Match-Patch')).toBeVisible();
+    
+    await page.locator('textarea').nth(0).fill(originalText);
+    await page.locator('textarea').nth(1).fill(revisedText);
+    await analysisButton.click();
+    
+    // Wait for analysis to complete
+    await expect(page.getByText(/Analyzing/i)).not.toBeVisible({ timeout: 30000 });
+    
+    // Navigate to review tab
+    await page.getByRole('navigation').getByRole('button', { name: 'Review Results' }).click();
+    
+    await expect(page.getByText(/Analysis Summary|No differences found|Review Results/i)).toBeVisible();
+  });
+
+  test('should benchmark diff engine performance', async ({ page }) => {
+    const longOriginalText = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. '.repeat(50);
+    const longRevisedText = longOriginalText.replace('Lorem ipsum', 'Lorem modified').replace('consectetur', 'consectetur updated').replace('tempor', 'temporal');
+    
+    await page.locator('textarea').nth(0).fill(longOriginalText);
+    await page.locator('textarea').nth(1).fill(longRevisedText);
+    
+    const diffEngineCheckbox = page.getByRole('checkbox').nth(1);
+    if (await diffEngineCheckbox.isChecked()) {
+      await diffEngineCheckbox.uncheck();
+    }
+    await expect(page.getByText('Custom LCS Algorithm')).toBeVisible();
+    
+    const lcsStartTime = Date.now();
+    const analysisButton = page.getByRole('button', { name: /Run Multi-Agent Analysis/i });
+    await analysisButton.click();
+    await expect(page.getByText(/Analyzing/i)).not.toBeVisible({ timeout: 60000 });
+    const lcsEndTime = Date.now();
+    const lcsTime = lcsEndTime - lcsStartTime;
+    
+    await page.getByRole('navigation').getByRole('button', { name: 'Upload Documents' }).click();
+    
+    await diffEngineCheckbox.check();
+    await expect(page.getByText('Google Diff-Match-Patch')).toBeVisible();
+    
+    await page.locator('textarea').nth(0).fill(longOriginalText);
+    await page.locator('textarea').nth(1).fill(longRevisedText);
+    
+    const dmpStartTime = Date.now();
+    await analysisButton.click();
+    await expect(page.getByText(/Analyzing/i)).not.toBeVisible({ timeout: 60000 });
+    const dmpEndTime = Date.now();
+    const dmpTime = dmpEndTime - dmpStartTime;
+    
+    expect(lcsTime).toBeLessThan(60000); // Less than 60 seconds
+    expect(dmpTime).toBeLessThan(60000); // Less than 60 seconds
+    
+    console.log(`Benchmark Results - LCS: ${lcsTime}ms, DiffMatchPatch: ${dmpTime}ms`);
+  });
+
+  test('should display diff engine selection in advanced settings', async ({ page }) => {
+    await expect(page.getByText('Diff Engine:')).toBeVisible();
+    
+    const diffEngineCheckbox = page.getByRole('checkbox').nth(1);
+    await expect(diffEngineCheckbox).not.toBeChecked();
+    await expect(page.getByText('Custom LCS Algorithm')).toBeVisible();
+    
+    await diffEngineCheckbox.check();
+    await expect(page.getByText('Google Diff-Match-Patch')).toBeVisible();
+    
+    await diffEngineCheckbox.uncheck();
+    await expect(page.getByText('Custom LCS Algorithm')).toBeVisible();
+  });
 });
