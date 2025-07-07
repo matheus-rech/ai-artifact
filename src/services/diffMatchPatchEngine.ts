@@ -12,8 +12,7 @@ export class DiffMatchPatchEngine {
 
   private toSentences(text: string): string[] {
     return text
-      .replace(/([.?!])\s+/g, '$1|')
-      .split('|')
+.split(/(?<=[.!?])\s+(?=[A-Z])|(?<=\w\.)\s+(?=[A-Z][a-z])|(?<=[0-9]\.)\s+(?=[A-Z])/g)
       .map(s => s.trim())
       .filter(Boolean);
   }
