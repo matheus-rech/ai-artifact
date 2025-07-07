@@ -1,12 +1,10 @@
 import { diff_match_patch } from 'diff-match-patch';
 import type { DiffItem, ValidationResult } from '../types';
-import { generateId } from '../utils';
 
 export class DiffMatchPatchEngine {
   private dmp: InstanceType<typeof diff_match_patch>;
   private static readonly MAX_TEXT_LENGTH = 1000000;
   private static readonly MIN_DIFF_LENGTH = 3;
-  private readonly SEP = '\u0001';
 
   constructor() {
     this.dmp = new diff_match_patch();
@@ -23,12 +21,6 @@ export class DiffMatchPatchEngine {
       .toLowerCase();
   }
 
-  private toSentences(text: string): string[] {
-    return text
-      .split(/(?<=[.!?])\s+(?=[A-Z])|(?<=\w\.)\s+(?=[A-Z][a-z])|(?<=[0-9]\.)\s+(?=[A-Z])/g)
-      .map(s => s.trim())
-      .filter(Boolean);
-  }
 
   private tokenizeSentences(text: string): string[] {
     const sentenceRegex = /(?<=[.!?])\s+(?=[A-Z])|(?<=\w\.)\s+(?=[A-Z][a-z])|(?<=[0-9]\.)\s+(?=[A-Z])/g;

@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { AnalysisOrchestrator } from '@/agents/AnalysisOrchestrator';
-import type { DiffItem, OverallAnalysis, AgentStatus, AgentResult, AnalysisMetrics } from '@/types';
+import type { DiffItem, OverallAnalysis, AgentResult, AnalysisMetrics } from '@/types';
 import type {
   AgentType,
   DiffSegmentationOutput,
@@ -12,7 +12,7 @@ interface UseMultiAgentAnalysisState {
   segmentationResult: AgentResult<DiffSegmentationOutput> | null;
   alignmentResult: AgentResult<ReviewerAlignmentOutput> | null;
   overallAnalysis: OverallAnalysis | null;
-  agentStatuses: Record<AgentType, AgentStatus>;
+  agentStatuses: Record<AgentType, 'idle' | 'executing' | 'completed' | 'error'>;
   analysisMetrics: AnalysisMetrics;
   error: string | null;
 }
@@ -20,7 +20,7 @@ interface UseMultiAgentAnalysisState {
 interface UseMultiAgentAnalysisActions {
   runAnalysis: (diffs: DiffItem[], reviewerRequests?: string) => Promise<void>;
   resetAnalysis: () => void;
-  getAgentStatus: (agentType: AgentType) => AgentStatus | undefined;
+  getAgentStatus: (agentType: AgentType) => 'idle' | 'executing' | 'completed' | 'error';
   isAnyAgentRunning: () => boolean;
 }
 
@@ -35,7 +35,7 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
     segmentationResult: null,
     alignmentResult: null,
     overallAnalysis: null,
-    agentStatuses: {} as Record<AgentType, AgentStatus>,
+    agentStatuses: {} as Record<AgentType, 'idle' | 'executing' | 'completed' | 'error'>,
     analysisMetrics: {
       totalTime: 0,
       diffCount: 0,
@@ -94,7 +94,7 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
           segmentationResult: result.segmentationResult,
           alignmentResult: result.alignmentResult,
           overallAnalysis: result.overallAnalysis,
-          agentStatuses: orchestrator.getAllAgentStatuses(),
+          agentStatuses: orchestrator.getAllStatuses(),
           analysisMetrics,
           error: null,
         }));
@@ -117,14 +117,14 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
    */
   const resetAnalysis = useCallback((): void => {
     const orchestrator = getOrchestrator();
-    orchestrator.resetAgents();
+    orchestrator.resetAll();
 
     setState({
       isAnalyzing: false,
       segmentationResult: null,
       alignmentResult: null,
       overallAnalysis: null,
-      agentStatuses: orchestrator.getAllAgentStatuses(),
+      agentStatuses: orchestrator.getAllStatuses(),
       analysisMetrics: {
         totalTime: 0,
         diffCount: 0,
@@ -139,7 +139,7 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
    * Get status of specific agent
    */
   const getAgentStatus = useCallback(
-    (agentType: AgentType): AgentStatus | undefined => {
+    (agentType: AgentType): 'idle' | 'executing' | 'completed' | 'error' => {
       const orchestrator = getOrchestrator();
       return orchestrator.getAgentStatus(agentType);
     },
@@ -151,7 +151,8 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
    */
   const isAnyAgentRunning = useCallback((): boolean => {
     const orchestrator = getOrchestrator();
-    return orchestrator.isAnyAgentRunning();
+    const statuses = orchestrator.getAllStatuses();
+    return Object.values(statuses).some(status => status === 'executing');
   }, [getOrchestrator]);
 
   return {

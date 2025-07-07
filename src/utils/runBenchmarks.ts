@@ -6,7 +6,7 @@ export async function runDiffEngineBenchmarks(): Promise<{
   results: BenchmarkResult[];
   report: string;
   recommendation: string;
- {
+}> {
   const benchmark = new PerformanceBenchmark();
   const diffEngine = new DiffEngine();
   const dmpEngine = new DiffMatchPatchEngine();
@@ -52,9 +52,6 @@ export async function runDiffEngineBenchmarks(): Promise<{
   return { results, report, recommendation };
 }
 
-const PERFORMANCE_THRESHOLD_MS = 50;
-const PERFORMANCE_RATIO_THRESHOLD = 0.8;
-const ACCURACY_DIFFERENCE_THRESHOLD = 0.05;
 function generateRecommendation(results: BenchmarkResult[]): string {
   const lcsResults = results.filter(r => r.engineName.startsWith('LCS'));
   const dmpResults = results.filter(r => r.engineName.startsWith('DMP'));
@@ -115,7 +112,7 @@ export async function runBenchmarksInConsole(): Promise<void> {
 
 import type { DiffItem } from '../types';
 
-interface BenchmarkResult {
+interface LocalBenchmarkResult {
   algorithm: string;
   duration: number;
   accuracy: number;
@@ -126,7 +123,7 @@ interface BenchmarkSuite {
   name: string;
   originalText: string;
   revisedText: string;
-  results: BenchmarkResult[];
+  results: LocalBenchmarkResult[];
 }
 
 /**
@@ -185,7 +182,7 @@ export class BenchmarkRunner {
   /**
    * Benchmark word-level diff generation
    */
-  private async benchmarkWordDiffs(original: string, revised: string): Promise<BenchmarkResult> {
+  private async benchmarkWordDiffs(original: string, revised: string): Promise<LocalBenchmarkResult> {
     const startTime = performance.now();
     
     const diffs = this.diffEngine.generateWordDiffs(original, revised);
@@ -204,7 +201,7 @@ export class BenchmarkRunner {
   /**
    * Benchmark sentence-level diff generation
    */
-  private async benchmarkSentenceDiffs(original: string, revised: string): Promise<BenchmarkResult> {
+  private async benchmarkSentenceDiffs(original: string, revised: string): Promise<LocalBenchmarkResult> {
     const startTime = performance.now();
     
     const diffs = this.diffEngine.generateSentenceDiffs(original, revised);
@@ -283,4 +280,3 @@ export async function runBenchmarks(): Promise<void> {
 
   console.warn(report);
 }
- main

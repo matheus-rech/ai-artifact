@@ -11,16 +11,6 @@ export class ReviewerAlignmentAgent extends BaseAgent<
   ReviewerAlignmentInput,
   ReviewerAlignmentOutput
 > {
- devin/1751828946-production-fixes
-
- devin/1751845727-add-env-example
-
- devin/1751831368-production-fixes
-
- main
-  private claudeAPI: ClaudeAPIService;
- main
- main
   private fallbackService: FallbackService;
 
   constructor(config: AgentConfig) {
@@ -46,31 +36,7 @@ export class ReviewerAlignmentAgent extends BaseAgent<
     );
 
     return {
- devin/1751828946-production-fixes
-      analyses: result.data.analyses,
-
       alignedAnalyses: result.data.analyses,
-
-    // Use Claude API for intelligent alignment analysis
-    const alignedAnalyses = await this.claudeAPI.analyzeReviewerAlignment(
-      input.diffs,
-      input.reviewerRequests
-    );
-
-    this.updateStatus('running', 60, 'Creating alignment summary...');
-    const summary = this.createAlignmentSummary(
-      input.diffs,
-      alignedAnalyses,
-      input.reviewerRequests
-    );
-
-    return {
-      alignedAnalyses,
- devin/1751845727-add-env-example
-
- main
- main
- main
       summary,
     };
   }
@@ -88,22 +54,10 @@ export class ReviewerAlignmentAgent extends BaseAgent<
       input.diffs,
       alignedAnalyses,
       input.reviewerRequests
- devin/1751828946-production-fixes
     );
 
-    ); devin/1751845727-add-env-example
-
- devin/1751831368-production-fixes
-
-
-    // Minimal await to satisfy linter
-    await Promise.resolve();
- main
- main
- main
-
     return {
-      analyses: alignedAnalyses,
+      alignedAnalyses,
       summary,
     };
   }
@@ -116,7 +70,7 @@ export class ReviewerAlignmentAgent extends BaseAgent<
     analyses: AnalysisItem[],
     reviewerRequests: string
   ): ReviewerAlignmentOutput['summary'] {
-    const alignedAnalyses = analyses.filter((a) => a.alignmentScore && a.alignmentScore > 0);
+    const alignedAnalyses = analyses.filter((a) => a.confidence > 0.7);
     const totalChanges = diffs.length;
     const alignedChanges = alignedAnalyses.length;
     const alignmentPercentage = Math.round((alignedChanges / totalChanges) * 100);
@@ -124,7 +78,7 @@ export class ReviewerAlignmentAgent extends BaseAgent<
     // Calculate average alignment score
     const averageAlignmentScore =
       alignedAnalyses.length > 0
-        ? alignedAnalyses.reduce((sum, a) => sum + (a.alignmentScore || 0), 0) /
+        ? alignedAnalyses.reduce((sum, a) => sum + a.confidence, 0) /
           alignedAnalyses.length
         : 0;
 
@@ -143,7 +97,7 @@ export class ReviewerAlignmentAgent extends BaseAgent<
   /**
    * Extract top reviewer requests based on alignment
    */
-  private extractTopRequests(reviewerRequests: string, analyses: AnalysisItem[]): string[] {
+  private extractTopRequests(reviewerRequests: string, _analyses: AnalysisItem[]): string[] {
     // Simple implementation - extract first few sentences
     const sentences = reviewerRequests.split(/[.!?]+/).filter((s) => s.trim().length > 10);
     
@@ -151,13 +105,37 @@ export class ReviewerAlignmentAgent extends BaseAgent<
     return sentences.slice(0, 3).map((s) => s.trim());
   }
 
-  isAvailable(): boolean {
+  override isAvailable(): boolean {
     return true; // Always available with fallback
+  }
+
+  protected async validateInput(input: ReviewerAlignmentInput): Promise<void> {
+    if (!input.diffs || !Array.isArray(input.diffs)) {
+      throw new Error('Invalid input: diffs must be an array');
+    }
+    if (!input.reviewerRequests || typeof input.reviewerRequests !== 'string') {
+      throw new Error('Invalid input: reviewerRequests must be a string');
+    }
+  }
+
+  protected async validateOutput(output: ReviewerAlignmentOutput): Promise<void> {
+    if (!output.alignedAnalyses || !Array.isArray(output.alignedAnalyses)) {
+      throw new Error('Invalid output: alignedAnalyses must be an array');
+    }
+    if (!output.summary || typeof output.summary !== 'object') {
+      throw new Error('Invalid output: summary must be an object');
+    }
+  }
+
+  protected calculateConfidence(output: ReviewerAlignmentOutput): number {
+    if (!output.alignedAnalyses || output.alignedAnalyses.length === 0) return 0;
+    const avgConfidence = output.alignedAnalyses.reduce((sum, a) => sum + a.confidence, 0) / output.alignedAnalyses.length;
+    return Math.min(avgConfidence, 1.0);
   }
 
   getEmptyResult(): ReviewerAlignmentOutput {
     return {
-      analyses: [],
+      alignedAnalyses: [],
       summary: {
         totalChanges: 0,
         alignedChanges: 0,

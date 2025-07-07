@@ -15,11 +15,6 @@ interface ClaudeAPIRequest {
   temperature?: number;
 }
 
-interface ClaudeAnalysisRequest {
-  type: 'segmentation' | 'alignment';
-  diffs: DiffItem[];
-  reviewerRequests?: string;
-}
 
 /**
  * Service for interacting with Claude API
@@ -68,9 +63,6 @@ export class ClaudeAPIService {
       maxRetries = envRetries || ClaudeAPIService.DEFAULT_MAX_RETRIES;
     }
 
-    const timeout = envTimeoutRaw !== undefined && (!Number.isFinite(envTimeout) || envTimeout <= 0)
-      ? ClaudeAPIService.DEFAULT_API_TIMEOUT
-      : envTimeout || ClaudeAPIService.DEFAULT_API_TIMEOUT;
       
     if (envTimeoutRaw !== undefined && (!Number.isFinite(envTimeout) || envTimeout <= 0)) {
       console.warn(
@@ -94,8 +86,8 @@ export class ClaudeAPIService {
           temperature: request.temperature || 0,
         });
 
-        if (response.content && response.content.length > 0 && response.content[0].type === 'text') {
-          return response.content[0].text as string;
+        if (response.content && response.content.length > 0 && response.content[0]?.type === 'text') {
+          return (response.content[0] as any).text as string;
         } else {
           // Use secure backend API endpoint
           const apiResponse = await fetch('/api/claude', {
@@ -298,49 +290,11 @@ Analyze alignment and respond with a JSON array where each item has:
     }
   }
 
-  /**
-   * Parse segmentation analysis response
-   */
-  private parseAnalysisResponse(response: string): AnalysisItem[] {
-    try {
-      // Extract JSON from response
-      const jsonMatch = response.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        throw new Error('No JSON array found in response');
-      }
-
-      const parsed = JSON.parse(jsonMatch[0]) as Array<{
-        diffId: string;
-        section: string;
-        priority: string;
-        assessment: string;
-        comment: string;
-        confidence: number;
-      }>;
-
-      return parsed.map((item) => ({
-        analysisId: generateId('claude-seg'),
-        diffId: item.diffId,
-        section: this.validateSection(item.section),
-        priority: this.validatePriority(item.priority),
-        assessment: this.validateAssessment(item.assessment),
-        comment: item.comment,
-        confidence: item.confidence || 0.8,
-        changeType: 'unknown',
-        reviewerPoint: 'Analysis completed',
-        relatedText: '',
-        timestamp: new Date().toISOString(),
-      })) as AnalysisItem[];
-    } catch (error) {
-      console.error('Failed to parse Claude response:', error);
-      throw new Error('Failed to parse analysis response');
-    }
-  }
 
   /**
    * Parse alignment analysis response
    */
-  private parseAlignmentResponse(response: string, diffs: DiffItem[]): AnalysisItem[] {
+  private parseAlignmentResponse(response: string, _diffs: DiffItem[]): AnalysisItem[] {
     try {
       // Extract JSON from response
       const jsonMatch = response.match(/\[[\s\S]*\]/);
