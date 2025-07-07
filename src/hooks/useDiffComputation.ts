@@ -49,11 +49,6 @@ export function useDiffComputation(config: DiffComputationConfig) {
       revised: string,
       granularity: DiffGranularity
     ): Promise<DiffItem[]> => {
- devin/1751845727-add-env-example
-      if (state.isComputing) {
-        throw new Error('Diff computation already in progress');
-      }
-
       if (isComputingRef.current) {
         throw new Error('Diff computation already in progress');
       }
@@ -61,7 +56,6 @@ export function useDiffComputation(config: DiffComputationConfig) {
       // Mark as running before any work starts to avoid race conditions
       isComputingRef.current = true;
 
- main
       setState((prev) => ({
         ...prev,
         isComputing: true,
@@ -76,27 +70,17 @@ export function useDiffComputation(config: DiffComputationConfig) {
         if (!original && !revised) {
           throw new Error('Both texts cannot be empty');
         }
- devin/1751828946-production-fixes
 
         if (original.length > config.maxTextLength || revised.length > config.maxTextLength) {
-
-        
-        if (!revisedValidation.isValid) {
-          throw new Error(`Revised text validation failed: ${revisedValidation.errors.join(', ')}`);
-
-        if (!revisedValidation.isValid) {
- main
           throw new Error(
             `Text exceeds maximum length of ${config.maxTextLength} characters`
           );
- main
         }
 
         // Compute diffs using selected engine
-        const diffs = await diffEngineRef.current.computeDiffs(original, revised, {
-          granularity,
-          minDiffLength: config.minDiffLength,
-        });
+        const diffs = granularity === 'word' 
+          ? diffEngineRef.current.generateWordDiffs(original, revised)
+          : diffEngineRef.current.generateSentenceDiffs(original, revised);
 
         const computationTime = performance.now() - startTime;
 
@@ -108,13 +92,9 @@ export function useDiffComputation(config: DiffComputationConfig) {
           error: null,
         }));
 
- devin/1751845727-add-env-example
-        console.log(
-
         isComputingRef.current = false;
 
         console.warn(
- main
           `Diff computation completed: ${diffs.length} changes in ${computationTime.toFixed(2)}ms`
         );
 
@@ -128,23 +108,12 @@ export function useDiffComputation(config: DiffComputationConfig) {
           error: errorMessage,
         }));
 
- devin/1751845727-add-env-example
-        throw error;
-      }
-    },
-    [state.isComputing, diffEngine]
-
         isComputingRef.current = false;
 
         throw error;
       }
     },
- devin/1751828946-production-fixes
     [config.maxTextLength, config.minDiffLength]
-
-    [diffEngine]
- main
- main
   );
 
   /**
@@ -175,7 +144,6 @@ export function useDiffComputation(config: DiffComputationConfig) {
     }));
   }, []);
 
- devin/1751828946-production-fixes
   /**
    * Get summary statistics
    */
@@ -196,18 +164,6 @@ export function useDiffComputation(config: DiffComputationConfig) {
           : 0,
     };
   }, [state.diffs]);
-
-      // Check for significant size differences
-      const sizeDifference = Math.abs(original.length - revised.length);
-      const averageSize = (original.length + revised.length) / 2;
- devin/1751845727-add-env-example
-      if (sizeDifference / averageSize > 0.5) {
-
-      if (averageSize > 0 && sizeDifference / averageSize > 0.5) {
- main
-        warnings.push('Large difference in text sizes detected');
-      }
- main
 
   /**
    * Export diffs to various formats

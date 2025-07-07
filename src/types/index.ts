@@ -116,6 +116,12 @@ export interface AppConfig {
   useDiffMatchPatch: boolean;
 }
 
+export interface DiffComputationConfig {
+  useDiffMatchPatch: boolean;
+  maxTextLength: number;
+  minDiffLength: number;
+}
+
 // Manuscript section types
 export type ManuscriptSection =
   | 'Abstract'
