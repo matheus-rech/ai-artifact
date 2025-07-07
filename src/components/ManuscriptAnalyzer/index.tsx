@@ -17,6 +17,7 @@ import { FileUploadArea } from './FileUploadArea';
 import { DiffViewer } from './DiffViewer';
 import { AnalysisPanel } from './AnalysisPanel';
 import { AgentStatusIndicator } from './AgentStatusIndicator';
+import { AdvancedSettings } from './AdvancedSettings';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import type { AnalysisTab, DiffGranularity, AppConfig, AgentMode } from '@/types';
 import { cn } from '@/utils';
@@ -32,11 +33,15 @@ const ManuscriptAnalyzer: React.FC = () => {
     maxRetries: parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10),
     maxTextLength: 1000000,
     minDiffLength: 3,
+ devin/1751855402-toggle-diff-engine
+    useDiffMatchPatch: true
+
+ main
   });
 
   // Custom hooks
   const validation = useManuscriptValidation();
-  const diffComputation = useDiffComputation();
+  const diffComputation = useDiffComputation(config);
   const multiAgentAnalysis = useMultiAgentAnalysis();
 
   /**
@@ -182,6 +187,8 @@ const ManuscriptAnalyzer: React.FC = () => {
                     <option value="sentence">Sentence-level</option>
                   </select>
                 </div>
+
+                <AdvancedSettings config={config} updateConfig={updateConfig} />
 
                 {/* Analysis Metrics */}
                 {multiAgentAnalysis.analysisMetrics.diffCount > 0 && (

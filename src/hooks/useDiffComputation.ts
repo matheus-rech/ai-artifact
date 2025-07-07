@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { DiffEngine } from '@/services/diffEngine';
-import type { DiffItem, ValidationResult, DiffGranularity } from '@/types';
+import { DiffMatchPatchEngine } from '@/services/diffMatchPatchEngine';
+import type { DiffItem, ValidationResult, DiffGranularity, AppConfig } from '@/types';
 
 interface UseDiffComputationState {
   diffs: DiffItem[];
@@ -22,7 +23,7 @@ interface UseDiffComputationActions {
 /**
  * Hook for managing diff computation with performance optimization
  */
-export function useDiffComputation(): UseDiffComputationState & UseDiffComputationActions {
+export function useDiffComputation(config: AppConfig): UseDiffComputationState & UseDiffComputationActions {
   const [state, setState] = useState<UseDiffComputationState>({
     diffs: [],
     isComputing: false,
@@ -30,8 +31,10 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
     error: null,
   });
 
-  // Memoized diff engine instance
-  const diffEngine = useMemo(() => new DiffEngine(), []);
+  // Memoized diff engine instance based on config
+  const diffEngine = useMemo(() => {
+    return config.useDiffMatchPatch ? new DiffMatchPatchEngine() : new DiffEngine();
+  }, [config.useDiffMatchPatch]);
 
   // Ref to track whether a diff computation is currently running.
   // Using a ref avoids issues with stale closures when `computeDiffs` is invoked
