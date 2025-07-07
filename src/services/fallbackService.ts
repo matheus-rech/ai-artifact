@@ -9,8 +9,14 @@ export class FallbackService {
    * Heuristic diff segmentation analysis
    */
   analyzeDiffSegmentation(diffs: DiffItem[]): AnalysisItem[] {
+ devin/1751831368-production-fixes
     console.log('Using fallback segmentation analysis');
 
+ devin/1751845727-add-env-example
+    console.warn('Using fallback segmentation analysis - Claude API unavailable');
+ main
+
+ main
     return diffs.map((d) => ({
       analysisId: generateId('fallback-seg'),
       diffId: d.id,
@@ -32,8 +38,17 @@ export class FallbackService {
   analyzeReviewerAlignment(diffs: DiffItem[], requests: string): AnalysisItem[] {
     if (!requests) return [];
 
+ devin/1751845727-add-env-example
     console.log('Using fallback reviewer alignment analysis');
 
+
+ devin/1751831368-production-fixes
+    console.log('Using fallback reviewer alignment analysis');
+
+    console.warn('Using fallback reviewer alignment analysis - Claude API unavailable');
+ main
+
+ main
     const requestsLower = requests.toLowerCase();
     const keywords = this.extractKeywords(requestsLower);
 
