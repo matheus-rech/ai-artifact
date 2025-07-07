@@ -52,6 +52,9 @@ export async function runDiffEngineBenchmarks(): Promise<{
   return { results, report, recommendation };
 }
 
+const PERFORMANCE_THRESHOLD_MS = 50;
+const PERFORMANCE_RATIO_THRESHOLD = 0.8;
+const ACCURACY_DIFFERENCE_THRESHOLD = 0.05;
 function generateRecommendation(results: BenchmarkResult[]): string {
   const lcsResults = results.filter(r => r.engineName.startsWith('LCS'));
   const dmpResults = results.filter(r => r.engineName.startsWith('DMP'));
