@@ -10,7 +10,11 @@ interface UseDiffComputationState {
 }
 
 interface UseDiffComputationActions {
-  computeDiffs: (original: string, revised: string, granularity: DiffGranularity) => Promise<DiffItem[]>;
+  computeDiffs: (
+    original: string,
+    revised: string,
+    granularity: DiffGranularity
+  ) => Promise<DiffItem[]>;
   resetDiffs: () => void;
   validateTexts: (original: string, revised: string) => ValidationResult;
 }
@@ -23,7 +27,7 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
     diffs: [],
     isComputing: false,
     computationTime: 0,
-    error: null
+    error: null,
   });
 
   // Memoized diff engine instance
@@ -38,80 +42,92 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
   /**
    * Compute diffs between original and revised text
    */
-  const computeDiffs = useCallback(async (
-    original: string,
-    revised: string,
-    granularity: DiffGranularity
-  ): Promise<DiffItem[]> => {
-
-    // Guard against parallel execution using the ref instead of state.
-    if (isComputingRef.current) {
-      throw new Error('Diff computation already in progress');
-    }
-
-    // Mark as running _before_ any asynchronous work starts to avoid race conditions
-    // where two calls could pass the check above before `setState` completes.
-    isComputingRef.current = true;
-
-    setState((prev: UseDiffComputationState): UseDiffComputationState => ({
-      ...prev,
-      isComputing: true,
-      error: null
-    }));
-
-    try {
-      const startTime = performance.now();
-
-      // Validate inputs
-      const originalValidation = diffEngine.validateInput(original);
-      const revisedValidation = diffEngine.validateInput(revised);
-
-      if (!originalValidation.isValid) {
-        throw new Error(`Original text validation failed: ${originalValidation.errors.join(', ')}`);
+  const computeDiffs = useCallback(
+    async (
+      original: string,
+      revised: string,
+      granularity: DiffGranularity
+    ): Promise<DiffItem[]> => {
+      // Guard against parallel execution using the ref instead of state.
+      if (isComputingRef.current) {
+        throw new Error('Diff computation already in progress');
       }
 
-      if (!revisedValidation.isValid) {
-        throw new Error(`Revised text validation failed: ${revisedValidation.errors.join(', ')}`);
-      }
+      // Mark as running _before_ any work starts to avoid race conditions
+      // where two calls could pass the check above before `setState` completes.
+      isComputingRef.current = true;
 
-      // Compute diffs based on granularity
-      const diffs: DiffItem[] = await Promise.resolve(
-        granularity === 'word'
-          ? diffEngine.generateWordDiffs(original, revised)
-          : diffEngine.generateSentenceDiffs(original, revised)
+      setState(
+        (prev: UseDiffComputationState): UseDiffComputationState => ({
+          ...prev,
+          isComputing: true,
+          error: null,
+        })
       );
 
-      const computationTime = performance.now() - startTime;
+      try {
+        const startTime = performance.now();
 
-      setState((prev: UseDiffComputationState): UseDiffComputationState => ({
-        ...prev,
-        diffs,
-        isComputing: false,
-        computationTime,
-        error: null
-      }));
+        // Validate inputs
+        const originalValidation = diffEngine.validateInput(original);
+        const revisedValidation = diffEngine.validateInput(revised);
 
-      isComputingRef.current = false;
+        if (!originalValidation.isValid) {
+          throw new Error(
+            `Original text validation failed: ${originalValidation.errors.join(', ')}`
+          );
+        }
 
-      console.log(`Diff computation completed: ${diffs.length} changes in ${computationTime.toFixed(2)}ms`);
-      
-      return diffs;
+        if (!revisedValidation.isValid) {
+          throw new Error(`Revised text validation failed: ${revisedValidation.errors.join(', ')}`);
+        }
 
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown diff computation error';
-      console.error('Diff computation failed:', error);
+        // Compute diffs based on granularity (using Promise.resolve to make it async)
+        const diffs: DiffItem[] = await Promise.resolve(
+          granularity === 'word'
+            ? diffEngine.generateWordDiffs(original, revised)
+            : diffEngine.generateSentenceDiffs(original, revised)
+        );
 
-      setState((prev: UseDiffComputationState): UseDiffComputationState => ({
-        ...prev,
-        isComputing: false,
-        error: errorMessage
-      }));
+        const computationTime = performance.now() - startTime;
 
-      isComputingRef.current = false;
+        setState(
+          (prev: UseDiffComputationState): UseDiffComputationState => ({
+            ...prev,
+            diffs,
+            isComputing: false,
+            computationTime,
+            error: null,
+          })
+        );
 
-      throw error;
-    }
-  }, [diffEngine]);
+        isComputingRef.current = false;
+
+        console.warn(
+          `Diff computation completed: ${diffs.length} changes in ${computationTime.toFixed(2)}ms`
+        );
+
+        return diffs;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown diff computation error';
+        console.error('Diff computation failed:', error);
+
+        setState(
+          (prev: UseDiffComputationState): UseDiffComputationState => ({
+            ...prev,
+            isComputing: false,
+            error: errorMessage,
+          })
+        );
+
+        isComputingRef.current = false;
+
+        throw error;
+      }
+    },
+    [diffEngine]
+  );
 
   /**
    * Reset diff computation state
@@ -121,7 +137,7 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
       diffs: [],
       isComputing: false,
       computationTime: 0,
-      error: null
+      error: null,
     };
     setState(resetState);
 
@@ -132,43 +148,46 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
   /**
    * Validate text inputs without computing diffs
    */
-  const validateTexts = useCallback((original: string, revised: string): ValidationResult => {
-    const errors: string[] = [];
-    const warnings: string[] = [];
+  const validateTexts = useCallback(
+    (original: string, revised: string): ValidationResult => {
+      const errors: string[] = [];
+      const warnings: string[] = [];
 
-    // Validate original text
-    const originalValidation = diffEngine.validateInput(original);
-    errors.push(...originalValidation.errors);
-    warnings.push(...originalValidation.warnings);
+      // Validate original text
+      const originalValidation = diffEngine.validateInput(original);
+      errors.push(...originalValidation.errors);
+      warnings.push(...originalValidation.warnings);
 
-    // Validate revised text
-    const revisedValidation = diffEngine.validateInput(revised);
-    errors.push(...revisedValidation.errors);
-    warnings.push(...revisedValidation.warnings);
+      // Validate revised text
+      const revisedValidation = diffEngine.validateInput(revised);
+      errors.push(...revisedValidation.errors);
+      warnings.push(...revisedValidation.warnings);
 
-    // Check for identical texts
-    if (original.trim() === revised.trim()) {
-      warnings.push('Original and revised texts appear identical');
-    }
+      // Check for identical texts
+      if (original.trim() === revised.trim()) {
+        warnings.push('Original and revised texts appear identical');
+      }
 
-    // Check for significant size differences
-    const sizeDifference = Math.abs(original.length - revised.length);
-    const averageSize = (original.length + revised.length) / 2;
-    if (sizeDifference / averageSize > 0.5) {
-      warnings.push('Large difference in text sizes detected');
-    }
+      // Check for significant size differences
+      const sizeDifference = Math.abs(original.length - revised.length);
+      const averageSize = (original.length + revised.length) / 2;
+      if (sizeDifference / averageSize > 0.5) {
+        warnings.push('Large difference in text sizes detected');
+      }
 
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings
-    };
-  }, [diffEngine]);
+      return {
+        isValid: errors.length === 0,
+        errors,
+        warnings,
+      };
+    },
+    [diffEngine]
+  );
 
   return {
     ...state,
     computeDiffs,
     resetDiffs,
-    validateTexts
+    validateTexts,
   };
 }
