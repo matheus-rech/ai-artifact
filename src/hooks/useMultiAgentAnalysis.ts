@@ -1,16 +1,10 @@
 import { useState, useCallback, useRef } from 'react';
 import { AnalysisOrchestrator } from '@/agents/AnalysisOrchestrator';
-import type { 
-  DiffItem, 
-  OverallAnalysis,
-  AgentStatus,
-  AgentResult,
-  AnalysisMetrics
-} from '@/types';
-import type { 
+import type { DiffItem, OverallAnalysis, AgentStatus, AgentResult, AnalysisMetrics } from '@/types';
+import type {
   AgentType,
   DiffSegmentationOutput,
-  ReviewerAlignmentOutput
+  ReviewerAlignmentOutput,
 } from '@/agents/base/AgentTypes';
 
 interface UseMultiAgentAnalysisState {
@@ -35,7 +29,7 @@ interface UseMultiAgentAnalysisActions {
  */
 export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAgentAnalysisActions {
   const orchestratorRef = useRef<AnalysisOrchestrator | null>(null);
-  
+
   const [state, setState] = useState<UseMultiAgentAnalysisState>({
     isAnalyzing: false,
     segmentationResult: null,
@@ -46,9 +40,9 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
       totalTime: 0,
       diffCount: 0,
       apiCalls: 0,
-      fallbackUsed: false
+      fallbackUsed: false,
     },
-    error: null
+    error: null,
   });
 
   // Initialize orchestrator if not already done
@@ -62,62 +56,61 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
   /**
    * Run comprehensive analysis using all agents
    */
-  const runAnalysis = useCallback(async (
-    diffs: DiffItem[], 
-    reviewerRequests?: string
-  ): Promise<void> => {
-    if (state.isAnalyzing) {
-      console.warn('Analysis already in progress');
-      return;
-    }
-
-    setState(prev => ({ 
-      ...prev, 
-      isAnalyzing: true, 
-      error: null,
-      analysisMetrics: {
-        ...prev.analysisMetrics,
-        diffCount: diffs.length
+  const runAnalysis = useCallback(
+    async (diffs: DiffItem[], reviewerRequests?: string): Promise<void> => {
+      if (state.isAnalyzing) {
+        console.warn('Analysis already in progress');
+        return;
       }
-    }));
 
-    try {
-      const orchestrator = getOrchestrator();
-      // const startTime = Date.now(); // Available for future performance tracking
-
-      // Start analysis
-      const result = await orchestrator.runComprehensiveAnalysis(diffs, reviewerRequests);
-
-      // Update metrics
-      const analysisMetrics: AnalysisMetrics = {
-        totalTime: result.executionSummary.totalTime,
-        diffCount: diffs.length,
-        apiCalls: result.executionSummary.successfulAgents, // Approximation
-        fallbackUsed: result.executionSummary.usedFallback
-      };
-
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
-        isAnalyzing: false,
-        segmentationResult: result.segmentationResult,
-        alignmentResult: result.alignmentResult,
-        overallAnalysis: result.overallAnalysis,
-        agentStatuses: orchestrator.getAllAgentStatuses(),
-        analysisMetrics,
-        error: null
+        isAnalyzing: true,
+        error: null,
+        analysisMetrics: {
+          ...prev.analysisMetrics,
+          diffCount: diffs.length,
+        },
       }));
 
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown analysis error';
-      console.error('Multi-agent analysis failed:', error);
-      
-      setState(prev => ({
-        ...prev,
-        isAnalyzing: false,
-        error: errorMessage
-      }));
-    }
-  }, [state.isAnalyzing, getOrchestrator]);
+      try {
+        const orchestrator = getOrchestrator();
+        // const startTime = Date.now(); // Available for future performance tracking
+
+        // Start analysis
+        const result = await orchestrator.runComprehensiveAnalysis(diffs, reviewerRequests);
+
+        // Update metrics
+        const analysisMetrics: AnalysisMetrics = {
+          totalTime: result.executionSummary.totalTime,
+          diffCount: diffs.length,
+          apiCalls: result.executionSummary.successfulAgents, // Approximation
+          fallbackUsed: result.executionSummary.usedFallback,
+        };
+
+        setState((prev) => ({
+          ...prev,
+          isAnalyzing: false,
+          segmentationResult: result.segmentationResult,
+          alignmentResult: result.alignmentResult,
+          overallAnalysis: result.overallAnalysis,
+          agentStatuses: orchestrator.getAllAgentStatuses(),
+          analysisMetrics,
+          error: null,
+        }));
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown analysis error';
+        console.error('Multi-agent analysis failed:', error);
+
+        setState((prev) => ({
+          ...prev,
+          isAnalyzing: false,
+          error: errorMessage,
+        }));
+      }
+    },
+    [state.isAnalyzing, getOrchestrator]
+  );
 
   /**
    * Reset analysis state
@@ -125,7 +118,7 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
   const resetAnalysis = useCallback((): void => {
     const orchestrator = getOrchestrator();
     orchestrator.resetAgents();
-    
+
     setState({
       isAnalyzing: false,
       segmentationResult: null,
@@ -136,19 +129,22 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
         totalTime: 0,
         diffCount: 0,
         apiCalls: 0,
-        fallbackUsed: false
+        fallbackUsed: false,
       },
-      error: null
+      error: null,
     });
   }, [getOrchestrator]);
 
   /**
    * Get status of specific agent
    */
-  const getAgentStatus = useCallback((agentType: AgentType): AgentStatus | undefined => {
-    const orchestrator = getOrchestrator();
-    return orchestrator.getAgentStatus(agentType);
-  }, [getOrchestrator]);
+  const getAgentStatus = useCallback(
+    (agentType: AgentType): AgentStatus | undefined => {
+      const orchestrator = getOrchestrator();
+      return orchestrator.getAgentStatus(agentType);
+    },
+    [getOrchestrator]
+  );
 
   /**
    * Check if any agent is currently running
@@ -163,6 +159,6 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
     runAnalysis,
     resetAnalysis,
     getAgentStatus,
-    isAnyAgentRunning
+    isAnyAgentRunning,
   };
 }

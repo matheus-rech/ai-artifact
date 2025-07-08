@@ -1,14 +1,7 @@
 import React, { useState } from 'react';
 import { BarChart3, RefreshCw, Download, FileText, Users, Target, TrendingUp } from 'lucide-react';
-import type { 
-  AgentResult,
-  DiffItem,
-  OverallAnalysis 
-} from '@/types';
-import type { 
-  DiffSegmentationOutput,
-  ReviewerAlignmentOutput 
-} from '@/agents/base/AgentTypes';
+import type { AgentResult, DiffItem, OverallAnalysis } from '@/types';
+import type { DiffSegmentationOutput, ReviewerAlignmentOutput } from '@/agents/base/AgentTypes';
 import { cn, formatConfidence } from '@/utils';
 
 interface AnalysisPanelProps {
@@ -28,7 +21,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   overallAnalysis,
   // diffs, // Available but not used in current implementation
   onRetryAnalysis,
-  onResetAnalysis
+  onResetAnalysis,
 }) => {
   const [activeView, setActiveView] = useState<AnalysisView>('overview');
   const [isRetrying, setIsRetrying] = useState(false);
@@ -42,28 +35,42 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     }
   };
 
+  const handleRetryClick = (): void => {
+    void handleRetryAnalysis();
+  };
+
   const getAssessmentColor = (assessment: string): string => {
     switch (assessment) {
-      case 'positive': return 'text-green-600 bg-green-50 border-green-200';
-      case 'negative': return 'text-red-600 bg-red-50 border-red-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+      case 'positive':
+        return 'text-green-600 bg-green-50 border-green-200';
+      case 'negative':
+        return 'text-red-600 bg-red-50 border-red-200';
+      default:
+        return 'text-gray-600 bg-gray-50 border-gray-200';
     }
   };
 
   const getPriorityColor = (priority: string): string => {
     switch (priority) {
-      case 'high': return 'text-red-600 bg-red-100';
-      case 'medium': return 'text-yellow-600 bg-yellow-100';
-      default: return 'text-blue-600 bg-blue-100';
+      case 'high':
+        return 'text-red-600 bg-red-100';
+      case 'medium':
+        return 'text-yellow-600 bg-yellow-100';
+      default:
+        return 'text-blue-600 bg-blue-100';
     }
   };
 
   const getChangeTypeIcon = (type: string): string => {
     switch (type) {
-      case 'addition': return '+ ';
-      case 'deletion': return '- ';
-      case 'modification': return '≈ ';
-      default: return '';
+      case 'addition':
+        return '+ ';
+      case 'deletion':
+        return '- ';
+      case 'modification':
+        return '≈ ';
+      default:
+        return '';
     }
   };
 
@@ -76,7 +83,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           Run the multi-agent analysis to see detailed insights about your manuscript changes.
         </p>
         <button
-          onClick={handleRetryAnalysis}
+          onClick={handleRetryClick}
           disabled={isRetrying}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
@@ -96,16 +103,16 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
               { id: 'overview', label: 'Overview', icon: BarChart3 },
               { id: 'segmentation', label: 'Section Analysis', icon: FileText },
               { id: 'alignment', label: 'Reviewer Alignment', icon: Users },
-              { id: 'export', label: 'Export Results', icon: Download }
+              { id: 'export', label: 'Export Results', icon: Download },
             ].map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => setActiveView(id as AnalysisView)}
                 className={cn(
-                  "py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2",
+                  'py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2',
                   activeView === id
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -132,7 +139,9 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
                     <Target className="h-8 w-8 text-blue-600 mr-3" />
                     <div>
                       <p className="text-sm font-medium text-blue-600">Total Changes</p>
-                      <p className="text-2xl font-bold text-blue-900">{overallAnalysis.totalChanges}</p>
+                      <p className="text-2xl font-bold text-blue-900">
+                        {overallAnalysis.totalChanges}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -155,8 +164,9 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
                     <div>
                       <p className="text-sm font-medium text-purple-600">Top Section</p>
                       <p className="text-2xl font-bold text-purple-900">
-                        {Object.entries(overallAnalysis.sectionBreakdown)
-                          .sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A'}
+                        {Object.entries(overallAnalysis.sectionBreakdown).sort(
+                          ([, a], [, b]) => b - a
+                        )[0]?.[0] || 'N/A'}
                       </p>
                     </div>
                   </div>
@@ -168,10 +178,9 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
                     <div>
                       <p className="text-sm font-medium text-orange-600">Alignment</p>
                       <p className="text-2xl font-bold text-orange-900">
-                        {alignmentResult?.success 
+                        {alignmentResult?.success
                           ? `${alignmentResult.data.summary.alignmentPercentage}%`
-                          : 'N/A'
-                        }
+                          : 'N/A'}
                       </p>
                     </div>
                   </div>
@@ -214,16 +223,20 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
                             {getChangeTypeIcon(analysis.changeType)}
                           </span>
                           <span className="font-medium text-gray-900">{analysis.section}</span>
-                          <span className={cn(
-                            "px-2 py-1 rounded-full text-xs font-medium",
-                            getPriorityColor(analysis.priority)
-                          )}>
+                          <span
+                            className={cn(
+                              'px-2 py-1 rounded-full text-xs font-medium',
+                              getPriorityColor(analysis.priority)
+                            )}
+                          >
                             {analysis.priority}
                           </span>
-                          <span className={cn(
-                            "px-2 py-1 rounded-full text-xs font-medium border",
-                            getAssessmentColor(analysis.assessment)
-                          )}>
+                          <span
+                            className={cn(
+                              'px-2 py-1 rounded-full text-xs font-medium border',
+                              getAssessmentColor(analysis.assessment)
+                            )}
+                          >
                             {analysis.assessment}
                           </span>
                           <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">
@@ -268,10 +281,12 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
                           <div className="flex items-center space-x-3 mb-2">
                             <span className="text-green-500">✓</span>
                             <span className="font-medium text-gray-900">{analysis.section}</span>
-                            <span className={cn(
-                              "px-2 py-1 rounded-full text-xs font-medium",
-                              getPriorityColor(analysis.priority)
-                            )}>
+                            <span
+                              className={cn(
+                                'px-2 py-1 rounded-full text-xs font-medium',
+                                getPriorityColor(analysis.priority)
+                              )}
+                            >
                               {analysis.priority} priority
                             </span>
                           </div>
@@ -300,20 +315,20 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           {activeView === 'export' && (
             <div className="space-y-6">
               <h3 className="text-lg font-medium">Export Analysis Results</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button className="bg-blue-600 text-white p-4 rounded-lg hover:bg-blue-700 flex flex-col items-center space-y-2">
                   <Download className="h-6 w-6" />
                   <span className="font-medium">Export PDF Report</span>
                   <span className="text-sm opacity-90">Comprehensive analysis report</span>
                 </button>
-                
+
                 <button className="bg-green-600 text-white p-4 rounded-lg hover:bg-green-700 flex flex-col items-center space-y-2">
                   <Download className="h-6 w-6" />
                   <span className="font-medium">Export JSON Data</span>
                   <span className="text-sm opacity-90">Raw analysis data</span>
                 </button>
-                
+
                 <button className="bg-purple-600 text-white p-4 rounded-lg hover:bg-purple-700 flex flex-col items-center space-y-2">
                   <Download className="h-6 w-6" />
                   <span className="font-medium">Export Summary</span>
@@ -332,11 +347,15 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
                     </div>
                     <div>
                       <span className="block text-gray-600">Sections Analyzed</span>
-                      <span className="font-medium">{Object.keys(overallAnalysis.sectionBreakdown).length}</span>
+                      <span className="font-medium">
+                        {Object.keys(overallAnalysis.sectionBreakdown).length}
+                      </span>
                     </div>
                     <div>
                       <span className="block text-gray-600">Avg. Confidence</span>
-                      <span className="font-medium">{formatConfidence(overallAnalysis.averageConfidence)}</span>
+                      <span className="font-medium">
+                        {formatConfidence(overallAnalysis.averageConfidence)}
+                      </span>
                     </div>
                     <div>
                       <span className="block text-gray-600">Recommendations</span>
@@ -357,9 +376,9 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
           >
             Reset Analysis
           </button>
-          
+
           <button
-            onClick={handleRetryAnalysis}
+            onClick={handleRetryClick}
             disabled={isRetrying}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
           >
