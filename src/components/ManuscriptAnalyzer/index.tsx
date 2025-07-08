@@ -33,12 +33,23 @@ const ManuscriptAnalyzer: React.FC = () => {
     maxRetries: parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10),
     maxTextLength: 1000000,
     minDiffLength: 3,
-    useDiffMatchPatch: false,
+ devin/1751831368-production-fixes
+
+ devin/1751849069-add-diff-engine-toggle
+    useDiffMatchPatch: false
+
+
+    useDiffMatchPatch: false
+
+    useDiffMatchPatch: true
+ main
+ main
+ main
   });
 
   // Custom hooks
   const validation = useManuscriptValidation();
-  const diffComputation = useDiffComputation(config.useDiffMatchPatch);
+  const diffComputation = useDiffComputation(config);
   const multiAgentAnalysis = useMultiAgentAnalysis();
 
   /**
@@ -173,9 +184,6 @@ const ManuscriptAnalyzer: React.FC = () => {
                   </label>
                 </div>
 
-                {/* Advanced Settings */}
-                <AdvancedSettings config={config} updateConfig={updateConfig} />
-
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-600">Granularity:</span>
                   <select
@@ -187,6 +195,8 @@ const ManuscriptAnalyzer: React.FC = () => {
                     <option value="sentence">Sentence-level</option>
                   </select>
                 </div>
+
+                <AdvancedSettings config={config} updateConfig={updateConfig} />
 
                 {/* Analysis Metrics */}
                 {multiAgentAnalysis.analysisMetrics.diffCount > 0 && (
@@ -316,6 +326,10 @@ const ManuscriptAnalyzer: React.FC = () => {
                     ))}
                   </div>
                 )}
+              </div>
+
+              <div className="bg-white rounded-lg shadow p-6 border-t-4 border-indigo-500">
+                <AdvancedSettings config={config} onConfigChange={updateConfig} />
               </div>
 
               <div className="flex justify-center">

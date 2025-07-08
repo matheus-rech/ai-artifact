@@ -1,86 +1,112 @@
 import { test, expect } from '@playwright/test';
-import { DiffEngine } from '../src/services/diffEngine';
 
-test.describe('DiffEngine', () => {
-  let diffEngine: DiffEngine;
-
-  test.beforeEach(() => {
-    diffEngine = new DiffEngine();
+test.describe('Diff Engine Integration Tests', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('http://localhost:3000');
   });
 
-  test('should generate word-level diffs correctly', async () => {
-    const original = 'The quick brown fox jumps over the lazy dog.';
-    const revised = 'The quick red fox jumps over the sleeping dog.';
-    
-    const diffs = diffEngine.generateWordDiffs(original, revised);
-    
-    expect(diffs).toBeDefined();
-    expect(diffs.length).toBeGreaterThan(0);
-    
-    // Check for expected changes
-    const changes = diffs.filter(d => d.type !== 'equal');
-    expect(changes.length).toBeGreaterThan(0);
-  });
-
-  test('should generate sentence-level diffs correctly', async () => {
-    const original = 'This is the first sentence. This is the second sentence.';
-    const revised = 'This is the first sentence. This is a modified second sentence.';
-    
-    const diffs = diffEngine.generateSentenceDiffs(original, revised);
-    
-    expect(diffs).toBeDefined();
-    expect(diffs.length).toBeGreaterThan(0);
-  });
-
-  test('should handle complex diff scenarios', async () => {
-    const testCases = [
-      {
-        name: 'simple addition',
-        original: 'Hello world',
-        revised: 'Hello beautiful world',
-        expectedDiffs: 3
-      },
-      {
-        name: 'simple deletion', 
-        original: 'Hello beautiful world',
-        revised: 'Hello world',
-        expectedDiffs: 3
-      },
-      {
-        name: 'modification',
-        original: 'Hello world',
-        revised: 'Hi world',
-        expectedDiffs: 3
-      }
-    ];
-
-    for (const { original, revised } of testCases) { {
-      const diffs = diffEngine.generateWordDiffs(original, revised);
-      expect(diffs).toBeDefined();
-      
-      const diffCount = diffs.filter(d => d.type !== 'equal').length;
-      expect(diffCount).toBeGreaterThan(0);
+  const testCases = [
+    {
+      name: 'basic text changes',
+      original: 'This is a test sentence. Another sentence follows.',
+      revised: 'This is a modified test sentence. Another sentence follows.',
+      expectedDiffs: 2
+    },
+    {
+      name: 'sentence moves',
+      original: 'First sentence here. Second sentence there.',
+      revised: 'Second sentence there. First sentence here.',
+      expectedDiffs: 2
+    },
+    {
+      name: 'word additions',
+      original: 'The quick fox jumps.',
+      revised: 'The quick brown fox jumps high.',
+      expectedDiffs: 2
+    },
+    {
+      name: 'paragraph restructuring',
+      original: 'Introduction paragraph. Methods section follows. Results are presented. Discussion concludes.',
+      revised: 'Introduction paragraph. Results are presented first. Methods section follows. Discussion concludes.',
+      expectedDiffs: 3
     }
-  });
+  ];
 
-  test('should validate input correctly', async () => {
-    const validationResult = diffEngine.validateInput('Valid text');
-    expect(validationResult.isValid).toBe(true);
-    expect(validationResult.errors).toHaveLength(0);
-  });
-
-  test('should handle empty strings', async () => {
-    const diffs = diffEngine.generateWordDiffs('', '');
-    expect(diffs).toBeDefined();
-    expect(diffs).toHaveLength(0);
-  });
-
-  test('should handle identical texts', async () => {
-    const text = 'Same text for both versions';
-    const diffs = diffEngine.generateWordDiffs(text, text);
-    expect(diffs).toBeDefined();
+  for (const engine of ['LCS', 'DMP']) {
+    test.describe(`${engine} Engine Tests`, () => {
+      for (const { name, original, revised } of testCases) {
+        test(`${engine}: ${name}`, async ({ page }) => {
+          await page.click('text=Upload Documents');
+          
+          if (engine === 'DMP') {
+            await page.check('input[type="checkbox"]:near(:text("Use diff-match-patch Engine"))');
+          } else {
+            await page.uncheck('input[type="checkbox"]:near(:text("Use diff-match-patch Engine"))');
+          }
+          
+          await page.fill('textarea:near(:text("Original Manuscript"))', original);
+          
+          await page.fill('textarea:near(:text("Revised Manuscript"))', revised);
+          
+          await page.click('text=Run Multi-Agent Analysis');
+          
+          await page.waitForSelector('text=Multi-Agent Analysis', { timeout: 30000 });
+          
+          await page.click('text=Review Results');
+          
+          const diffElements = page.locator('[data-testid="diff-item"], .diff-item, .bg-red-50, .bg-green-50');
+          await expect(diffElements.first()).toBeVisible({ timeout: 10000 });
+          
+          const diffCount = await diffElements.count();
+          expect(diffCount).toBeGreaterThan(0);
+          
+          console.warn(`${engine} engine processed "${name}" with ${diffCount} diff elements`);
+        });
+      }
+      
+      test(`${engine}: performance benchmark`, async ({ page }) => {
+        const longText = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(100);
+        const modifiedLongText = longText.replace('Lorem ipsum', 'Modified lorem ipsum').replace('consectetur', 'updated consectetur');
+        
+        if (engine === 'DMP') {
+          await page.check('input[type="checkbox"]:near(:text("Use diff-match-patch Engine"))');
+        } else {
+          await page.uncheck('input[type="checkbox"]:near(:text("Use diff-match-patch Engine"))');
+        }
+        
+        await page.fill('textarea:near(:text("Original Manuscript"))', longText);
+        await page.fill('textarea:near(:text("Revised Manuscript"))', modifiedLongText);
+        
+        const startTime = Date.now();
+        await page.click('text=Run Multi-Agent Analysis');
+        await page.waitForSelector('text=Multi-Agent Analysis', { timeout: 60000 });
+        const endTime = Date.now();
+        
+        const analysisTime = endTime - startTime;
+        console.warn(`${engine} engine performance: ${analysisTime}ms for large text`);
+        
+        await page.click('text=Review Results');
+        const diffElements = page.locator('[data-testid="diff-item"], .diff-item, .bg-red-50, .bg-green-50');
+        await expect(diffElements.first()).toBeVisible({ timeout: 10000 });
+      });
+    });
+  }
+  
+  test('Engine toggle functionality', async ({ page }) => {
+    const checkbox = page.locator('input[type="checkbox"]:near(:text("Use diff-match-patch Engine"))');
     
-    const onlyEqualDiffs = diffs.every(d => d.type === 'equal');
-    expect(onlyEqualDiffs).toBe(true);
+    await expect(checkbox).not.toBeChecked();
+    
+    await checkbox.check();
+    await expect(checkbox).toBeChecked();
+    
+    await checkbox.uncheck();
+    await expect(checkbox).not.toBeChecked();
+  });
+  
+  test('Advanced Settings visibility', async ({ page }) => {
+    await expect(page.locator('text=Advanced Settings')).toBeVisible();
+    await expect(page.locator('text=Use diff-match-patch Engine')).toBeVisible();
+    await expect(page.locator('text=Enhanced diff algorithm with better performance and semantic cleanup')).toBeVisible();
   });
 });

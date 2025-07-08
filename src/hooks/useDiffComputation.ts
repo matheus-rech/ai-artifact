@@ -22,6 +22,7 @@ interface UseDiffComputationActions {
 
 /**
  * Hook for managing diff computation with performance optimization
+ * (Devin-aligned: diff engine toggle and ref-based concurrency guard)
  */
 export function useDiffComputation(
   useDiffMatchPatch: boolean = false
@@ -38,10 +39,7 @@ export function useDiffComputation(
     return useDiffMatchPatch ? new DiffMatchPatchEngine() : new DiffEngine();
   }, [useDiffMatchPatch]);
 
-  // Ref to track whether a diff computation is currently running.
-  // Using a ref avoids issues with stale closures when `computeDiffs` is invoked
-  // multiple times in quick succession (e.g. double-clicks) before React state
-  // updates have propagated.
+  // Ref to track if a computation is running (avoids race with React state)
   const isComputingRef = useRef(false);
 
   /**
@@ -53,22 +51,18 @@ export function useDiffComputation(
       revised: string,
       granularity: DiffGranularity
     ): Promise<DiffItem[]> => {
-      // Guard against parallel execution using the ref instead of state.
       if (isComputingRef.current) {
         throw new Error('Diff computation already in progress');
       }
 
-      // Mark as running _before_ any work starts to avoid race conditions
-      // where two calls could pass the check above before `setState` completes.
+      // Mark as running before any work starts to avoid race conditions
       isComputingRef.current = true;
 
-      setState(
-        (prev: UseDiffComputationState): UseDiffComputationState => ({
-          ...prev,
-          isComputing: true,
-          error: null,
-        })
-      );
+      setState((prev) => ({
+        ...prev,
+        isComputing: true,
+        error: null,
+      }));
 
       try {
         const startTime = performance.now();
@@ -82,29 +76,29 @@ export function useDiffComputation(
             `Original text validation failed: ${originalValidation.errors.join(', ')}`
           );
         }
-
         if (!revisedValidation.isValid) {
-          throw new Error(`Revised text validation failed: ${revisedValidation.errors.join(', ')}`);
+          throw new Error(
+            `Revised text validation failed: ${revisedValidation.errors.join(', ')}`
+          );
         }
 
-        // Compute diffs based on granularity (using Promise.resolve to make it async)
-        const diffs: DiffItem[] = await Promise.resolve(
-          granularity === 'word'
-            ? diffEngine.generateWordDiffs(original, revised)
-            : diffEngine.generateSentenceDiffs(original, revised)
-        );
+        // Compute diffs based on granularity
+        let diffs: DiffItem[];
+        if (granularity === 'word') {
+          diffs = diffEngine.generateWordDiffs(original, revised);
+        } else {
+          diffs = diffEngine.generateSentenceDiffs(original, revised);
+        }
 
         const computationTime = performance.now() - startTime;
 
-        setState(
-          (prev: UseDiffComputationState): UseDiffComputationState => ({
-            ...prev,
-            diffs,
-            isComputing: false,
-            computationTime,
-            error: null,
-          })
-        );
+        setState((prev) => ({
+          ...prev,
+          diffs,
+          isComputing: false,
+          computationTime,
+          error: null,
+        }));
 
         isComputingRef.current = false;
 
@@ -118,13 +112,11 @@ export function useDiffComputation(
           error instanceof Error ? error.message : 'Unknown diff computation error';
         console.error('Diff computation failed:', error);
 
-        setState(
-          (prev: UseDiffComputationState): UseDiffComputationState => ({
-            ...prev,
-            isComputing: false,
-            error: errorMessage,
-          })
-        );
+        setState((prev) => ({
+          ...prev,
+          isComputing: false,
+          error: errorMessage,
+        }));
 
         isComputingRef.current = false;
 
@@ -138,15 +130,12 @@ export function useDiffComputation(
    * Reset diff computation state
    */
   const resetDiffs = useCallback((): void => {
-    const resetState: UseDiffComputationState = {
+    setState({
       diffs: [],
       isComputing: false,
       computationTime: 0,
       error: null,
-    };
-    setState(resetState);
-
-    // Ensure the ref flag is also reset so that new computations can be started.
+    });
     isComputingRef.current = false;
   }, []);
 
@@ -176,7 +165,7 @@ export function useDiffComputation(
       // Check for significant size differences
       const sizeDifference = Math.abs(original.length - revised.length);
       const averageSize = (original.length + revised.length) / 2;
-      if (sizeDifference / averageSize > 0.5) {
+      if (averageSize > 0 && sizeDifference / averageSize > 0.5) {
         warnings.push('Large difference in text sizes detected');
       }
 
