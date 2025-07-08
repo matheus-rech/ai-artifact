@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useContext } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   FileText,
   BarChart3,
@@ -17,21 +17,39 @@ import { FileUploadArea } from './FileUploadArea';
 import { DiffViewer } from './DiffViewer';
 import { AnalysisPanel } from './AnalysisPanel';
 import { AgentStatusIndicator } from './AgentStatusIndicator';
-import { ErrorBoundary } from '../common/ErrorBoundary';
 import { AdvancedSettings } from './AdvancedSettings';
-import { ManuscriptAnalyzerContext, ManuscriptAnalyzerProvider } from '@/contexts/ManuscriptAnalyzerContext';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 import type { AnalysisTab, DiffGranularity, AppConfig, AgentMode } from '@/types';
 import { cn } from '@/utils';
 
-const ManuscriptAnalyzerContent: React.FC = () => {
+const ManuscriptAnalyzer: React.FC = () => {
   // State management
   const [activeTab, setActiveTab] = useState<AnalysisTab>('upload');
   const [diffGranularity, setDiffGranularity] = useState<DiffGranularity>('sentence');
-  const { config, updateConfig } = useContext(ManuscriptAnalyzerContext);
+  const [config, setConfig] = useState<AppConfig>({
+    useClaudeAPI: process.env['NEXT_PUBLIC_USE_CLAUDE_API'] === 'true',
+    agentMode: (process.env['NEXT_PUBLIC_AGENT_MODE'] as AgentMode) || 'heuristic',
+    apiTimeout: parseInt(process.env['NEXT_PUBLIC_API_TIMEOUT'] || '30000', 10),
+    maxRetries: parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10),
+    maxTextLength: 1000000,
+    minDiffLength: 3,
+ devin/1751831368-production-fixes
+
+ devin/1751849069-add-diff-engine-toggle
+    useDiffMatchPatch: false
+
+
+    useDiffMatchPatch: false
+
+    useDiffMatchPatch: true
+ main
+ main
+ main
+  });
 
   // Custom hooks
   const validation = useManuscriptValidation();
-  const diffComputation = useDiffComputation();
+  const diffComputation = useDiffComputation(config);
   const multiAgentAnalysis = useMultiAgentAnalysis();
 
   /**
@@ -112,9 +130,9 @@ const ManuscriptAnalyzerContent: React.FC = () => {
   /**
    * Handle configuration changes
    */
-  const updateConfigLocal = useCallback((updates: Partial<AppConfig>): void => {
-    updateConfig(updates);
-  }, [updateConfig]);
+  const updateConfig = useCallback((updates: Partial<AppConfig>): void => {
+    setConfig((prev) => ({ ...prev, ...updates }));
+  }, []);
 
   // Auto-scroll to analysis results when completed
   useEffect(() => {
@@ -159,7 +177,7 @@ const ManuscriptAnalyzerContent: React.FC = () => {
                     <input
                       type="checkbox"
                       checked={config.useClaudeAPI}
-                      onChange={(e) => updateConfigLocal({ useClaudeAPI: e.target.checked })}
+                      onChange={(e) => updateConfig({ useClaudeAPI: e.target.checked })}
                       className="rounded"
                     />
                     <span className="ml-2 text-sm text-gray-600">Claude AI Analysis</span>
@@ -178,6 +196,8 @@ const ManuscriptAnalyzerContent: React.FC = () => {
                   </select>
                 </div>
 
+                <AdvancedSettings config={config} updateConfig={updateConfig} />
+
                 {/* Analysis Metrics */}
                 {multiAgentAnalysis.analysisMetrics.diffCount > 0 && (
                   <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
@@ -188,11 +208,6 @@ const ManuscriptAnalyzerContent: React.FC = () => {
             </div>
           </div>
         </header>
-
-        {/* Advanced Settings */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-          <AdvancedSettings />
-        </div>
 
         {/* Error and Warning Display */}
         {(validation.overallValidation.errors.length > 0 ||
@@ -313,6 +328,10 @@ const ManuscriptAnalyzerContent: React.FC = () => {
                 )}
               </div>
 
+              <div className="bg-white rounded-lg shadow p-6 border-t-4 border-indigo-500">
+                <AdvancedSettings config={config} onConfigChange={updateConfig} />
+              </div>
+
               <div className="flex justify-center">
                 <button
                   onClick={handleRunAnalysisClick}
@@ -373,11 +392,5 @@ const ManuscriptAnalyzerContent: React.FC = () => {
     </ErrorBoundary>
   );
 };
-
-const ManuscriptAnalyzer: React.FC = () => (
-  <ManuscriptAnalyzerProvider>
-    <ManuscriptAnalyzerContent />
-  </ManuscriptAnalyzerProvider>
-);
 
 export default ManuscriptAnalyzer;

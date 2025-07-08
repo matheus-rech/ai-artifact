@@ -1,8 +1,7 @@
-import { useState, useCallback, useMemo, useRef, useContext } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { DiffEngine } from '@/services/diffEngine';
 import { DiffMatchPatchEngine } from '@/services/diffMatchPatchEngine';
 import type { DiffItem, ValidationResult, DiffGranularity, AppConfig } from '@/types';
-import { ManuscriptAnalyzerContext } from '@/contexts/ManuscriptAnalyzerContext';
 
 interface UseDiffComputationState {
   diffs: DiffItem[];
@@ -23,8 +22,9 @@ interface UseDiffComputationActions {
 
 /**
  * Hook for managing diff computation with performance optimization
+ * (Devin-aligned: diff engine toggle and ref-based concurrency guard)
  */
-export function useDiffComputation(): UseDiffComputationState & UseDiffComputationActions {
+export function useDiffComputation(config: AppConfig): UseDiffComputationState & UseDiffComputationActions {
   const [state, setState] = useState<UseDiffComputationState>({
     diffs: [],
     isComputing: false,
@@ -32,16 +32,12 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
     error: null,
   });
 
-  const { config } = useContext(ManuscriptAnalyzerContext);
+  // Memoized diff engine instance based on config
+  const diffEngine = useMemo(() => {
+    return config.useDiffMatchPatch ? new DiffMatchPatchEngine() : new DiffEngine();
+  }, [config.useDiffMatchPatch]);
 
-  // Memoized diff engine instances
-  const diffEngine = useMemo(() => new DiffEngine(), []);
-  const diffMatchPatchEngine = useMemo(() => new DiffMatchPatchEngine(), []);
-
-  // Ref to track whether a diff computation is currently running.
-  // Using a ref avoids issues with stale closures when `computeDiffs` is invoked
-  // multiple times in quick succession (e.g. double-clicks) before React state
-  // updates have propagated.
+  // Ref to track if a computation is running (avoids race with React state)
   const isComputingRef = useRef(false);
 
   /**
@@ -53,60 +49,54 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
       revised: string,
       granularity: DiffGranularity
     ): Promise<DiffItem[]> => {
-      // Guard against parallel execution using the ref instead of state.
       if (isComputingRef.current) {
         throw new Error('Diff computation already in progress');
       }
 
-      // Mark as running _before_ any work starts to avoid race conditions
-      // where two calls could pass the check above before `setState` completes.
+      // Mark as running before any work starts to avoid race conditions
       isComputingRef.current = true;
 
-      setState(
-        (prev: UseDiffComputationState): UseDiffComputationState => ({
-          ...prev,
-          isComputing: true,
-          error: null,
-        })
-      );
+      setState((prev) => ({
+        ...prev,
+        isComputing: true,
+        error: null,
+      }));
 
       try {
         const startTime = performance.now();
 
-        const engine = config.useDiffMatchPatch ? diffMatchPatchEngine : diffEngine;
-
         // Validate inputs
-        const originalValidation = engine.validateInput(original);
-        const revisedValidation = engine.validateInput(revised);
+        const originalValidation = diffEngine.validateInput(original);
+        const revisedValidation = diffEngine.validateInput(revised);
 
         if (!originalValidation.isValid) {
           throw new Error(
             `Original text validation failed: ${originalValidation.errors.join(', ')}`
           );
         }
-
         if (!revisedValidation.isValid) {
-          throw new Error(`Revised text validation failed: ${revisedValidation.errors.join(', ')}`);
+          throw new Error(
+            `Revised text validation failed: ${revisedValidation.errors.join(', ')}`
+          );
         }
 
-        // Compute diffs based on granularity (using Promise.resolve to make it async)
-        const diffs: DiffItem[] = await Promise.resolve(
-          granularity === 'word'
-            ? engine.generateWordDiffs(original, revised)
-            : engine.generateSentenceDiffs(original, revised)
-        );
+        // Compute diffs based on granularity
+        let diffs: DiffItem[];
+        if (granularity === 'word') {
+          diffs = diffEngine.generateWordDiffs(original, revised);
+        } else {
+          diffs = diffEngine.generateSentenceDiffs(original, revised);
+        }
 
         const computationTime = performance.now() - startTime;
 
-        setState(
-          (prev: UseDiffComputationState): UseDiffComputationState => ({
-            ...prev,
-            diffs,
-            isComputing: false,
-            computationTime,
-            error: null,
-          })
-        );
+        setState((prev) => ({
+          ...prev,
+          diffs,
+          isComputing: false,
+          computationTime,
+          error: null,
+        }));
 
         isComputingRef.current = false;
 
@@ -120,35 +110,30 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
           error instanceof Error ? error.message : 'Unknown diff computation error';
         console.error('Diff computation failed:', error);
 
-        setState(
-          (prev: UseDiffComputationState): UseDiffComputationState => ({
-            ...prev,
-            isComputing: false,
-            error: errorMessage,
-          })
-        );
+        setState((prev) => ({
+          ...prev,
+          isComputing: false,
+          error: errorMessage,
+        }));
 
         isComputingRef.current = false;
 
         throw error;
       }
     },
-    [config, diffEngine, diffMatchPatchEngine]
+    [diffEngine]
   );
 
   /**
    * Reset diff computation state
    */
   const resetDiffs = useCallback((): void => {
-    const resetState: UseDiffComputationState = {
+    setState({
       diffs: [],
       isComputing: false,
       computationTime: 0,
       error: null,
-    };
-    setState(resetState);
-
-    // Ensure the ref flag is also reset so that new computations can be started.
+    });
     isComputingRef.current = false;
   }, []);
 
@@ -160,15 +145,13 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
       const errors: string[] = [];
       const warnings: string[] = [];
 
-      const engine = config.useDiffMatchPatch ? diffMatchPatchEngine : diffEngine;
-
       // Validate original text
-      const originalValidation = engine.validateInput(original);
+      const originalValidation = diffEngine.validateInput(original);
       errors.push(...originalValidation.errors);
       warnings.push(...originalValidation.warnings);
 
       // Validate revised text
-      const revisedValidation = engine.validateInput(revised);
+      const revisedValidation = diffEngine.validateInput(revised);
       errors.push(...revisedValidation.errors);
       warnings.push(...revisedValidation.warnings);
 
@@ -180,7 +163,7 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
       // Check for significant size differences
       const sizeDifference = Math.abs(original.length - revised.length);
       const averageSize = (original.length + revised.length) / 2;
-      if (sizeDifference / averageSize > 0.5) {
+      if (averageSize > 0 && sizeDifference / averageSize > 0.5) {
         warnings.push('Large difference in text sizes detected');
       }
 
@@ -190,7 +173,7 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
         warnings,
       };
     },
-    [config, diffEngine, diffMatchPatchEngine]
+    [diffEngine]
   );
 
   return {

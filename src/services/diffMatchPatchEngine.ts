@@ -1,231 +1,273 @@
-import DiffMatchPatch from 'diff-match-patch';
-import type { DiffItem, ValidationResult } from '../types';
+import { diff_match_patch } from 'diff-match-patch';
+ devin/1751849069-add-diff-engine-toggle
+import type { DiffItem } from '../types';
+import { generateId } from '../utils';
 
-/**
- * Google's diff-match-patch engine implementation for academic manuscript analysis
- * Uses the diff-match-patch library for text comparison
- */
 export class DiffMatchPatchEngine {
-  private static readonly MAX_TEXT_LENGTH = 1000000; // 1MB limit
-  private static readonly MIN_DIFF_LENGTH = 3; // Minimum meaningful diff length
-  private dmp: DiffMatchPatch;
+  private dmp: InstanceType<typeof diff_match_patch>;
+  private readonly SEP = '\u0001';
 
   constructor() {
-    this.dmp = new DiffMatchPatch();
+    this.dmp = new diff_match_patch();
   }
 
-  /**
-   * Enhanced text preprocessing for academic content
-   */
-  private preprocessText(text: string): string {
+  private toSentences(text: string): string[] {
     return text
-      .trim()
-      .replace(/\r\n/g, '\n') // Normalize line endings
-      .replace(/\s+/g, ' ') // Normalize whitespace
-      .replace(/[^\w\s\.\!\?\,\;\:\-\(\)]/g, '') // Remove special chars that might interfere
-      .toLowerCase(); // Case-insensitive comparison
+.split(/(?<=[.!?])\s+(?=[A-Z])|(?<=\w\.)\s+(?=[A-Z][a-z])|(?<=[0-9]\.)\s+(?=[A-Z])/g)
+      .map(s => s.trim())
+      .filter(Boolean);
   }
 
-  /**
-   * Advanced sentence tokenization for academic papers
-   */
-  private tokenizeSentences(text: string): string[] {
-    // Academic paper sentence boundaries (enhanced for scientific text)
-    const sentenceRegex =
-      /(?<=[.!?])\s+(?=[A-Z])|(?<=\w\.)\s+(?=[A-Z][a-z])|(?<=[0-9]\.)\s+(?=[A-Z])/g;
-
-    return text
-      .split(sentenceRegex)
-      .map((s) => s.trim())
-      .filter((s) => s.length >= DiffMatchPatchEngine.MIN_DIFF_LENGTH)
-      .filter((s) => !this.isBoilerplate(s));
-  }
-
-  /**
-   * Detect and filter boilerplate text
-   */
-  private isBoilerplate(text: string): boolean {
-    const boilerplatePatterns = [
-      /^(figure|table|equation|reference)\s*\d+/i,
-      /^(see|cf\.|e\.g\.|i\.e\.)/i,
-      /^\d+$/,
-      /^[a-z]$/i,
-    ];
-    return boilerplatePatterns.some((pattern) => pattern.test(text.trim()));
-  }
-
-  /**
-   * Generate word-level diffs with context using diff-match-patch
-   */
   generateWordDiffs(original: string, revised: string): DiffItem[] {
-    const preprocessedOrig = this.preprocessText(original);
-    const preprocessedRev = this.preprocessText(revised);
-
-    const origWords = preprocessedOrig.split(/(\s+)/);
-    const revWords = preprocessedRev.split(/(\s+)/);
-
-    const origText = origWords.join('');
-    const revText = revWords.join('');
-
-    const diffs = this.dmp.diff_main(origText, revText);
-    this.dmp.diff_cleanupSemantic(diffs);
-
-    return this.convertDiffsToItems(diffs, 'word');
+    const raw = this.dmp.diff_main(original, revised);
+    this.dmp.diff_cleanupSemantic(raw);
+    return this.mapToItems(raw, 'word');
   }
 
-  /**
-   * Generate sentence-level diffs with context using diff-match-patch
-   */
   generateSentenceDiffs(original: string, revised: string): DiffItem[] {
-    const origSentences = this.tokenizeSentences(original);
-    const revSentences = this.tokenizeSentences(revised);
-
-    const origText = origSentences.join('\n');
-    const revText = revSentences.join('\n');
-
-    const diffs = this.dmp.diff_main(origText, revText);
-    this.dmp.diff_cleanupSemantic(diffs);
-
-    return this.convertDiffsToItems(diffs, 'sentence');
+    const origSentences = this.toSentences(original).join(this.SEP);
+    const revSentences = this.toSentences(revised).join(this.SEP);
+    const raw = this.dmp.diff_main(origSentences, revSentences);
+    this.dmp.diff_cleanupSemantic(raw);
+    return this.mapToItems(raw, 'sentence');
   }
 
-  /**
-   * Convert diff-match-patch diffs to DiffItem format
-   */
-  private convertDiffsToItems(diffs: Array<[number, string]>, type: 'word' | 'sentence'): DiffItem[] {
-    const diffItems: DiffItem[] = [];
-    let diffId = 0;
+  private mapToItems(diffs: Array<[number, string]>, type: 'word' | 'sentence'): DiffItem[] {
+    const items: DiffItem[] = [];
     let originalPos = 0;
     let revisedPos = 0;
 
     for (const [operation, text] of diffs) {
-      if (text.trim().length < DiffMatchPatchEngine.MIN_DIFF_LENGTH) {
-        if (operation === -1) originalPos += text.length;
-        if (operation === 1) revisedPos += text.length;
-        if (operation === 0) {
-          originalPos += text.length;
-          revisedPos += text.length;
+      if (text.length === 0) continue;
+
+      const content = type === 'sentence' ? text.split(this.SEP).filter(Boolean) : [text];
+      
+      for (const segment of content) {
+        if (segment.trim().length === 0) continue;
+
+        let diffType: DiffItem['type'];
+        switch (operation) {
+          case diff_match_patch.DIFF_DELETE:
+            diffType = 'deletion';
+            break;
+          case diff_match_patch.DIFF_INSERT:
+            diffType = 'addition';
+            break;
+          case diff_match_patch.DIFF_EQUAL:
+            diffType = 'equal';
+            break;
+          default:
+            diffType = 'modification';
         }
+
+        const item: DiffItem = {
+          id: generateId('dmp'),
+          text: segment.trim(),
+          originalPos: originalPos,
+          revisedPos: revisedPos,
+          type: diffType,
+          confidence: 0.95,
+          context: this.getContext(segment, type)
+        };
+
+        items.push(item);
+
+        if (operation !== diff_match_patch.DIFF_INSERT) {
+          originalPos += segment.length;
+        }
+        if (operation !== diff_match_patch.DIFF_DELETE) {
+          revisedPos += segment.length;
+        }
+
+import type { DiffItem, ValidationResult } from '../types';
+
+export class DiffMatchPatchEngine {
+  private dmp: InstanceType<typeof diff_match_patch>;
+  private static readonly MAX_TEXT_LENGTH = 1000000;
+  private static readonly MIN_DIFF_LENGTH = 3;
+
+  constructor() {
+    this.dmp = new diff_match_patch();
+    this.dmp.Diff_Timeout = 1.0;
+    this.dmp.Diff_EditCost = 4;
+  }
+
+  private preprocessText(text: string): string {
+    return text
+      .trim()
+      .replace(/\r\n/g, '\n')
+      .replace(/\s+/g, ' ')
+      .replace(/[^\w\s\.\!\?\,\;\:\-\(\)]/g, '')
+      .toLowerCase();
+  }
+
+  private tokenizeSentences(text: string): string[] {
+    const sentenceRegex = /(?<=[.!?])\s+(?=[A-Z])|(?<=\w\.)\s+(?=[A-Z][a-z])|(?<=[0-9]\.)\s+(?=[A-Z])/g;
+    
+    return text
+      .split(sentenceRegex)
+      .map(s => s.trim())
+      .filter(s => s.length >= DiffMatchPatchEngine.MIN_DIFF_LENGTH)
+      .filter(s => !this.isBoilerplate(s));
+  }
+
+  private tokenizeWords(text: string): string[] {
+    return text
+      .split(/\s+/)
+      .map(w => w.trim())
+      .filter(w => w.length >= DiffMatchPatchEngine.MIN_DIFF_LENGTH)
+      .filter(w => !this.isBoilerplate(w));
+  }
+
+  private isBoilerplate(text: string): boolean {
+    const boilerplatePatterns = [
+      /^(the|and|or|but|in|on|at|to|for|of|with|by)$/i,
+      /^(figure|table|section|chapter|page|ref|cite)$/i,
+      /^\d+$/,
+      /^[a-z]$/i
+    ];
+    
+    return boilerplatePatterns.some(pattern => pattern.test(text.trim()));
+  }
+
+  private calculateConfidence(text: string, type: 'word' | 'sentence'): number {
+    const baseConfidence = type === 'sentence' ? 0.8 : 0.6;
+    const lengthBonus = Math.min(text.length / 50, 0.2);
+    return Math.min(baseConfidence + lengthBonus, 1.0);
+  }
+
+
+  private convertDmpDiffsToItems(dmpDiffs: [number, string][], type: 'word' | 'sentence'): DiffItem[] {
+    const items: DiffItem[] = [];
+    let diffId = 0;
+    let originalPos = 0;
+    let revisedPos = 0;
+
+    for (const [operation, text] of dmpDiffs) {
+      if (text.trim().length < DiffMatchPatchEngine.MIN_DIFF_LENGTH) {
         continue;
       }
 
-      if (operation === -1) {
-        // Deletion
-        diffItems.push({
-          id: `${type}-del-${diffId++}`,
-          text: text.trim(),
-          originalPos,
-          revisedPos,
-          type: 'deletion',
-          confidence: this.calculateConfidence(text, type),
-          context: this.getContext(text, type),
-        });
-        originalPos += text.length;
-      } else if (operation === 1) {
-        // Addition
-        diffItems.push({
-          id: `${type}-add-${diffId++}`,
-          text: text.trim(),
-          originalPos,
-          revisedPos,
-          type: 'addition',
-          confidence: this.calculateConfidence(text, type),
-          context: this.getContext(text, type),
-        });
-        revisedPos += text.length;
-      } else {
-        originalPos += text.length;
-        revisedPos += text.length;
+      const confidence = this.calculateConfidence(text, type);
+      
+      switch (operation) {
+        case diff_match_patch.DIFF_DELETE:
+          items.push({
+            id: `${type}-del-${diffId++}`,
+            text: text.trim(),
+            originalPos,
+            revisedPos,
+            type: 'deletion',
+            confidence,
+            context: ''
+          });
+          originalPos += text.length;
+          break;
+          
+        case diff_match_patch.DIFF_INSERT:
+          items.push({
+            id: `${type}-add-${diffId++}`,
+            text: text.trim(),
+            originalPos,
+            revisedPos,
+            type: 'addition',
+            confidence,
+            context: ''
+          });
+          revisedPos += text.length;
+          break;
+          
+        case diff_match_patch.DIFF_EQUAL:
+          originalPos += text.length;
+          revisedPos += text.length;
+          break;
+ main
       }
     }
 
-    return diffItems;
+    return items;
   }
 
-  /**
-   * Calculate confidence score for diffs
-   */
-  private calculateConfidence(text: string, type: 'word' | 'sentence'): number {
-    let confidence = 0.5; // Base confidence
+ devin/1751849069-add-diff-engine-toggle
+  private getContext(text: string, type: 'word' | 'sentence'): string {
+    if (type === 'sentence') {
+      return 'sentence-level';
+    }
+    return text.length > 50 ? 'long-text' : 'short-text';
 
-    // Length factor
-    if (type === 'sentence' && text.length > 50) confidence += 0.2;
-    if (type === 'word' && text.length > 10) confidence += 0.1;
-
-    // Academic keywords boost confidence
-    const academicKeywords = [
-      'hypothesis',
-      'methodology',
-      'analysis',
-      'conclusion',
-      'significant',
-      'data',
-      'results',
-      'discussion',
-      'literature',
-      'research',
-    ];
-
-    const lowerText = text.toLowerCase();
-    const keywordMatches = academicKeywords.filter((keyword) => lowerText.includes(keyword)).length;
-    confidence += Math.min(keywordMatches * 0.1, 0.3);
-
-    return Math.min(confidence, 1.0);
+  generateWordDiffs(original: string, revised: string): DiffItem[] {
+    try {
+      const processedOriginal = this.preprocessText(original);
+      const processedRevised = this.preprocessText(revised);
+      
+      const originalWords = this.tokenizeWords(processedOriginal);
+      const revisedWords = this.tokenizeWords(processedRevised);
+      
+      const originalText = originalWords.join(' ');
+      const revisedText = revisedWords.join(' ');
+      
+      const diffs = this.dmp.diff_main(originalText, revisedText);
+      this.dmp.diff_cleanupSemantic(diffs);
+      
+      return this.convertDmpDiffsToItems(diffs, 'word');
+    } catch (error) {
+      console.error('Error generating word diffs:', error);
+      return [];
+    }
   }
 
-  /**
-   * Get surrounding context for a diff
-   */
-  private getContext(text: string, _type: 'word' | 'sentence'): string {
-    return text.trim();
+  generateSentenceDiffs(original: string, revised: string): DiffItem[] {
+    try {
+      const processedOriginal = this.preprocessText(original);
+      const processedRevised = this.preprocessText(revised);
+      
+      const originalSentences = this.tokenizeSentences(processedOriginal);
+      const revisedSentences = this.tokenizeSentences(processedRevised);
+      
+      const originalText = originalSentences.join('\n');
+      const revisedText = revisedSentences.join('\n');
+      
+      const diffs = this.dmp.diff_main(originalText, revisedText);
+      this.dmp.diff_cleanupSemantic(diffs);
+      
+      return this.convertDmpDiffsToItems(diffs, 'sentence');
+    } catch (error) {
+      console.error('Error generating sentence diffs:', error);
+      return [];
+    }
   }
 
-  /**
-   * Validate input text before processing
-   */
   validateInput(text: string): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
     if (!text || text.trim().length === 0) {
       errors.push('Text cannot be empty');
+      return { isValid: false, errors, warnings };
     }
 
     if (text.length > DiffMatchPatchEngine.MAX_TEXT_LENGTH) {
       errors.push(`Text too long (${text.length} chars). Maximum: ${DiffMatchPatchEngine.MAX_TEXT_LENGTH}`);
     }
 
-    if (text.length < 50) {
-      warnings.push('Text is very short. Analysis may be limited.');
+    if (text.trim().length < 50) {
+      warnings.push('Text is very short and may not produce meaningful analysis');
     }
 
-    // Check for academic content indicators
-    const academicIndicators = [
-      'abstract',
-      'introduction',
-      'methodology',
-      'results',
-      'discussion',
-      'conclusion',
-      'references',
-      'figure',
-      'table',
-      'hypothesis',
-      'data',
-    ];
+    const wordCount = text.split(/\s+/).length;
+    if (wordCount < 10) {
+      warnings.push('Text has very few words and may not be suitable for analysis');
+    }
 
-    const hasAcademicContent = academicIndicators.some((indicator) =>
-      text.toLowerCase().includes(indicator)
-    );
-
-    if (!hasAcademicContent) {
-      warnings.push('Text may not be academic content. Analysis optimized for research papers.');
+    if (!/[.!?]/.test(text)) {
+      warnings.push('Text appears to lack sentence structure');
     }
 
     return {
       isValid: errors.length === 0,
       errors,
-      warnings,
+      warnings
     };
+ main
   }
 }

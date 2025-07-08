@@ -27,15 +27,17 @@ test.describe('Manuscript Diff Analyzer', () => {
   });
 
   test('should allow text input in manuscript fields', async ({ page }) => {
-    const originalText = "This is the original manuscript text. It contains several sentences that will be analyzed.";
-    const revisedText = "This is the revised manuscript text. It contains several updated sentences that will be analyzed for changes.";
+    const originalText =
+      'This is the original manuscript text. It contains several sentences that will be analyzed.';
+    const revisedText =
+      'This is the revised manuscript text. It contains several updated sentences that will be analyzed for changes.';
 
     // Fill original manuscript
     const originalTextarea = page.locator('textarea').nth(0);
     await originalTextarea.fill(originalText);
     await expect(originalTextarea).toHaveValue(originalText);
 
-    // Fill revised manuscript  
+    // Fill revised manuscript
     const revisedTextarea = page.locator('textarea').nth(1);
     await revisedTextarea.fill(revisedText);
     await expect(revisedTextarea).toHaveValue(revisedText);
@@ -45,7 +47,8 @@ test.describe('Manuscript Diff Analyzer', () => {
   });
 
   test('should allow input in reviewer requests field', async ({ page }) => {
-    const reviewerRequests = "Please clarify the methodology section and add more details about the statistical analysis.";
+    const reviewerRequests =
+      'Please clarify the methodology section and add more details about the statistical analysis.';
 
     // Fill reviewer requests
     const reviewerTextarea = page.getByPlaceholder(/Paste reviewer revision requests here/i);
@@ -55,13 +58,13 @@ test.describe('Manuscript Diff Analyzer', () => {
 
   test('should enable analysis button when both manuscripts are provided', async ({ page }) => {
     const analysisButton = page.getByRole('button', { name: /Run Multi-Agent Analysis/i });
-    
+
     // Initially disabled
     await expect(analysisButton).toBeDisabled();
 
     // Fill both manuscripts
-    await page.locator('textarea').nth(0).fill("Original manuscript content");
-    await page.locator('textarea').nth(1).fill("Revised manuscript content");
+    await page.locator('textarea').nth(0).fill('Original manuscript content');
+    await page.locator('textarea').nth(1).fill('Revised manuscript content');
 
     // Should now be enabled
     await expect(analysisButton).toBeEnabled();
@@ -69,13 +72,17 @@ test.describe('Manuscript Diff Analyzer', () => {
 
   test('should navigate between tabs', async ({ page }) => {
     const nav = page.getByRole('navigation');
-    
+
     // Start on Upload tab
-    await expect(nav.getByRole('button', { name: 'Upload Documents' })).toHaveClass(/text-blue-600/);
+    await expect(nav.getByRole('button', { name: 'Upload Documents' })).toHaveClass(
+      /text-blue-600/
+    );
 
     // Click Analysis tab
     await nav.getByRole('button', { name: 'Multi-Agent Analysis' }).click();
-    await expect(nav.getByRole('button', { name: 'Multi-Agent Analysis' })).toHaveClass(/text-blue-600/);
+    await expect(nav.getByRole('button', { name: 'Multi-Agent Analysis' })).toHaveClass(
+      /text-blue-600/
+    );
 
     // Click Review tab
     await nav.getByRole('button', { name: 'Review Results' }).click();
@@ -83,13 +90,15 @@ test.describe('Manuscript Diff Analyzer', () => {
 
     // Go back to Upload tab
     await nav.getByRole('button', { name: 'Upload Documents' }).click();
-    await expect(nav.getByRole('button', { name: 'Upload Documents' })).toHaveClass(/text-blue-600/);
+    await expect(nav.getByRole('button', { name: 'Upload Documents' })).toHaveClass(
+      /text-blue-600/
+    );
   });
 
   test('should show validation errors for invalid input', async ({ page }) => {
     // Try with very short text
-    await page.locator('textarea').nth(0).fill("Too short");
-    await page.locator('textarea').nth(1).fill("Also short");
+    await page.locator('textarea').nth(0).fill('Too short');
+    await page.locator('textarea').nth(1).fill('Also short');
 
     // Look for warning indicators (the app shows warnings, not errors)
     await expect(page.getByText(/Warnings/i).first()).toBeVisible();
@@ -106,14 +115,24 @@ test.describe('Manuscript Diff Analyzer', () => {
     await claudeCheckbox.click();
     await expect(claudeCheckbox).toBeChecked({ checked: !isInitiallyChecked });
 
+    const diffEngineCheckbox = page.getByRole('checkbox', {
+      name: /Use Google Diff-Match-Patch Engine/i,
+    });
+    await expect(diffEngineCheckbox).toBeVisible();
+
+    // Test checking/unchecking diff engine
+    const isDiffEngineInitiallyChecked = await diffEngineCheckbox.isChecked();
+    await diffEngineCheckbox.click();
+    await expect(diffEngineCheckbox).toBeChecked({ checked: !isDiffEngineInitiallyChecked });
+
     // Find granularity dropdown
     const granularitySelect = page.getByRole('combobox');
     await expect(granularitySelect).toBeVisible();
-    
+
     // Test changing granularity
     await granularitySelect.selectOption('word');
     await expect(granularitySelect).toHaveValue('word');
-    
+
     await granularitySelect.selectOption('sentence');
     await expect(granularitySelect).toHaveValue('sentence');
   });
@@ -137,7 +156,8 @@ test.describe('Manuscript Diff Analyzer', () => {
     We conclude that modern machine learning approaches offer substantial and measurable benefits for complex data processing tasks.
     `;
 
-    const reviewerRequests = "Please provide more details about the methodology and strengthen the conclusions with additional evidence.";
+    const reviewerRequests =
+      'Please provide more details about the methodology and strengthen the conclusions with additional evidence.';
 
     // Fill in the manuscripts
     await page.locator('textarea').nth(0).fill(originalText);
@@ -162,7 +182,9 @@ test.describe('Manuscript Diff Analyzer', () => {
     await expect(page.getByText(/Analyzing/i)).not.toBeVisible({ timeout: 30000 });
 
     // Should automatically navigate to analysis tab
-    await expect(page.getByRole('button', { name: /Multi-Agent Analysis/i })).toHaveClass(/text-blue-600/);
+    await expect(page.getByRole('button', { name: /Multi-Agent Analysis/i })).toHaveClass(
+      /text-blue-600/
+    );
 
     // Check for analysis results
     await expect(page.getByText(/Analysis Summary/i)).toBeVisible();
@@ -171,9 +193,12 @@ test.describe('Manuscript Diff Analyzer', () => {
   test('should display analysis results properly', async ({ page }) => {
     // This test would require either mock data or a working backend
     // For now, we'll test the UI structure when analysis results are available
-    
+
     // Navigate to analysis tab
-    await page.getByRole('navigation').getByRole('button', { name: 'Multi-Agent Analysis' }).click();
+    await page
+      .getByRole('navigation')
+      .getByRole('button', { name: 'Multi-Agent Analysis' })
+      .click();
 
     // Check for the status indicator component
     await expect(page.getByText(/Multi-Agent Analysis Status/i)).toBeVisible();
@@ -217,7 +242,7 @@ test.describe('Manuscript Diff Analyzer', () => {
   });
 
   test('should preserve user input during navigation', async ({ page }) => {
-    const testText = "This is some test content that should persist.";
+    const testText = 'This is some test content that should persist.';
 
     // Enter text in original manuscript
     await page.locator('textarea').nth(0).fill(testText);
@@ -231,5 +256,119 @@ test.describe('Manuscript Diff Analyzer', () => {
 
     // Text should still be there
     await expect(page.locator('textarea').nth(0)).toHaveValue(testText);
+  });
+
+  test('should test AdvancedSettings component functionality', async ({ page }) => {
+    // Check that Advanced Settings section is visible
+    await expect(page.getByText(/Advanced Settings/i)).toBeVisible();
+
+    const diffEngineCheckbox = page.getByRole('checkbox', {
+      name: /Use Google Diff-Match-Patch Engine/i,
+    });
+    await expect(diffEngineCheckbox).toBeVisible();
+
+    await expect(diffEngineCheckbox).not.toBeChecked();
+
+    await diffEngineCheckbox.click();
+    await expect(diffEngineCheckbox).toBeChecked();
+
+    await diffEngineCheckbox.click();
+    await expect(diffEngineCheckbox).not.toBeChecked();
+
+    await diffEngineCheckbox.click();
+    await expect(diffEngineCheckbox).toBeChecked();
+
+    // Navigate to another tab and back
+    const nav = page.getByRole('navigation');
+    await nav.getByRole('button', { name: 'Multi-Agent Analysis' }).click();
+    await nav.getByRole('button', { name: 'Upload Documents' }).click();
+
+    await expect(diffEngineCheckbox).toBeChecked();
+  });
+
+  test('should compare both diff engines with same input', async ({ page }) => {
+    const originalText = `
+    Introduction
+    This study examines machine learning algorithms for data processing.
+    Our methodology involved statistical analysis of collected data.
+    Results show significant improvements in processing efficiency.
+    `;
+
+    const revisedText = `
+    Introduction
+    This comprehensive study examines advanced machine learning algorithms for efficient data processing.
+    Our rigorous methodology involved detailed statistical analysis of extensively collected data.
+    Experimental results demonstrate highly significant improvements in processing efficiency and accuracy.
+    `;
+
+    await page.locator('textarea').nth(0).fill(originalText);
+    await page.locator('textarea').nth(1).fill(revisedText);
+
+    const diffEngineCheckbox = page.getByRole('checkbox', {
+      name: /Use Google Diff-Match-Patch Engine/i,
+    });
+    if (await diffEngineCheckbox.isChecked()) {
+      await diffEngineCheckbox.click();
+    }
+    await expect(diffEngineCheckbox).not.toBeChecked();
+
+    const analysisButton = page.getByRole('button', { name: /Run Multi-Agent Analysis/i });
+    await expect(analysisButton).toBeEnabled();
+    await analysisButton.click();
+
+    // Wait for analysis to complete
+    await expect(page.getByText(/Analyzing/i)).toBeVisible();
+    await expect(page.getByText(/Analyzing/i)).not.toBeVisible({ timeout: 30000 });
+
+    await expect(page.getByText(/Analysis Summary/i)).toBeVisible();
+
+    await page.getByRole('navigation').getByRole('button', { name: 'Upload Documents' }).click();
+
+    await page.locator('textarea').nth(0).clear();
+    await page.locator('textarea').nth(1).clear();
+    await page.locator('textarea').nth(0).fill(originalText);
+    await page.locator('textarea').nth(1).fill(revisedText);
+
+    await diffEngineCheckbox.click();
+    await expect(diffEngineCheckbox).toBeChecked();
+
+    await expect(analysisButton).toBeEnabled();
+    await analysisButton.click();
+
+    // Wait for analysis to complete
+    await expect(page.getByText(/Analyzing/i)).toBeVisible();
+    await expect(page.getByText(/Analyzing/i)).not.toBeVisible({ timeout: 30000 });
+
+    await expect(page.getByText(/Analysis Summary/i)).toBeVisible();
+
+    // Both engines should produce analysis results
+  });
+
+  test('should handle engine switching during analysis workflow', async ({ page }) => {
+    const shortOriginal = 'Original text for testing.';
+    const shortRevised = 'Revised text for comprehensive testing.';
+
+    // Fill manuscripts
+    await page.locator('textarea').nth(0).fill(shortOriginal);
+    await page.locator('textarea').nth(1).fill(shortRevised);
+
+    const diffEngineCheckbox = page.getByRole('checkbox', {
+      name: /Use Google Diff-Match-Patch Engine/i,
+    });
+    const analysisButton = page.getByRole('button', { name: /Run Multi-Agent Analysis/i });
+
+    await page.getByRole('combobox').selectOption('word');
+    await expect(diffEngineCheckbox).not.toBeChecked();
+    await expect(analysisButton).toBeEnabled();
+
+    await page.getByRole('combobox').selectOption('sentence');
+    await diffEngineCheckbox.click();
+    await expect(diffEngineCheckbox).toBeChecked();
+    await expect(analysisButton).toBeEnabled();
+
+    await analysisButton.click();
+    await expect(page.getByText(/Analyzing/i)).toBeVisible();
+    await expect(page.getByText(/Analyzing/i)).not.toBeVisible({ timeout: 30000 });
+    await expect(page.getByText(/Analysis Summary/i)).toBeVisible();
   });
 });
