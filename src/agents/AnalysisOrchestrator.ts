@@ -19,7 +19,7 @@ type AgentOutput = DiffSegmentationOutput | ReviewerAlignmentOutput;
  */
 export class AnalysisOrchestrator {
   private agents: Map<AgentType, BaseAgent<AgentInput, AgentOutput>> = new Map();
-  private agentStatuses: Map<AgentType, AgentStatus> = new Map();
+  private agentStatuses: Map<AgentType, 'idle' | 'executing' | 'completed' | 'error'> = new Map();
   private executionResults: Map<AgentType, AgentResult<AgentOutput>> = new Map();
 
   constructor(configs?: Partial<Record<AgentType, AgentConfig>>) {
