@@ -1,16 +1,40 @@
 import { DiffSegmentationAgent } from './DiffSegmentationAgent';
 import { ReviewerAlignmentAgent } from './ReviewerAlignmentAgent';
+import type { BaseAgent } from './base/BaseAgent';
+import type { AgentConfig, DiffItem, OverallAnalysis, AgentStatus, AgentResult } from '@/types';
+import { DEFAULT_AGENT_CONFIGS } from './base/AgentTypes';
+import type {
+  AgentType,
+  DiffSegmentationInput,
+  DiffSegmentationOutput,
+  ReviewerAlignmentInput,
+  ReviewerAlignmentOutput,
+} from './base/AgentTypes';
+
 import type { AgentConfig, DiffItem, OverallAnalysis, AgentStatus, AgentResult } from '@/types';
 import { DEFAULT_AGENT_CONFIGS } from './base/AgentTypes';
 import type { AgentType, DiffSegmentationOutput, ReviewerAlignmentOutput } from './base/AgentTypes';
+ main
+
+type AgentInput = DiffSegmentationInput | ReviewerAlignmentInput;
+type AgentOutput = DiffSegmentationOutput | ReviewerAlignmentOutput;
 
 /**
  * Orchestrates multiple AI agents for comprehensive manuscript analysis
  */
 export class AnalysisOrchestrator {
-  private agents: Map<AgentType, any> = new Map();
+ devin/1751831368-production-fixes
+  private agents: Map<AgentType, BaseAgent<AgentInput, AgentOutput>> = new Map();
   private agentStatuses: Map<AgentType, AgentStatus> = new Map();
-  private executionResults: Map<AgentType, AgentResult<any>> = new Map();
+  private executionResults: Map<AgentType, AgentResult<AgentOutput>> = new Map();
+
+  private agents: Map<AgentType, DiffSegmentationAgent | ReviewerAlignmentAgent> = new Map();
+  private agentStatuses: Map<AgentType, AgentStatus> = new Map();
+  private executionResults: Map<
+    AgentType,
+    AgentResult<DiffSegmentationOutput | ReviewerAlignmentOutput>
+  > = new Map();
+ main
 
   constructor(configs?: Partial<Record<AgentType, AgentConfig>>) {
     this.initializeAgents(configs);
@@ -58,12 +82,17 @@ export class AnalysisOrchestrator {
 
     try {
       // Run diff segmentation analysis
-      const segmentationResult = await this.runAgent('diff-segmentation', { diffs });
+      const segmentationResult = await this.runAgent<DiffSegmentationOutput>('diff-segmentation', {
+        diffs,
+      });
 
       // Run reviewer alignment analysis (if requests provided)
       let alignmentResult: AgentResult<ReviewerAlignmentOutput>;
       if (reviewerRequests && reviewerRequests.trim()) {
-        alignmentResult = await this.runAgent('reviewer-alignment', { diffs, reviewerRequests });
+        alignmentResult = await this.runAgent<ReviewerAlignmentOutput>('reviewer-alignment', {
+          diffs,
+          reviewerRequests,
+        });
       } else {
         alignmentResult = {
           success: true,
@@ -100,7 +129,10 @@ export class AnalysisOrchestrator {
         executionSummary,
       };
     } catch (error) {
+ devin/1751831368-production-fixes
+
       console.error('Comprehensive analysis failed:', error);
+ main
       throw new Error(
         `Analysis orchestration failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -110,7 +142,16 @@ export class AnalysisOrchestrator {
   /**
    * Run a specific agent
    */
-  async runAgent<T = any>(agentType: AgentType, input: any): Promise<AgentResult<T>> {
+ devin/1751831368-production-fixes
+  async runAgent<T extends AgentOutput>(
+    agentType: AgentType,
+    input: AgentInput
+
+  async runAgent<T = DiffSegmentationOutput | ReviewerAlignmentOutput>(
+    agentType: AgentType,
+    input: unknown
+ main
+  ): Promise<AgentResult<T>> {
     const agent = this.agents.get(agentType);
     if (!agent) {
       throw new Error(`Agent ${agentType} not found`);
@@ -121,20 +162,49 @@ export class AnalysisOrchestrator {
     }
 
     try {
-      const result = await agent.execute(input);
+      const result = await agent.execute(input as any);
       this.executionResults.set(agentType, result);
       this.agentStatuses.set(agentType, agent.getStatus());
-      return result;
+      return result as AgentResult<T>;
     } catch (error) {
+      // Create empty result based on agent type
+      let emptyData: T;
+      if (agentType === 'diff-segmentation') {
+        emptyData = {
+          analyses: [],
+          summary: {
+            totalAnalyzed: 0,
+            sectionBreakdown: {},
+            priorityBreakdown: {},
+            averageConfidence: 0,
+          },
+        } as unknown as T;
+      } else {
+        emptyData = {
+          alignedAnalyses: [],
+          summary: {
+            totalChanges: 0,
+            alignedChanges: 0,
+            alignmentPercentage: 0,
+            topRequests: [],
+            averageAlignmentScore: 0,
+          },
+        } as unknown as T;
+      }
+
       const errorResult: AgentResult<T> = {
         success: false,
-        data: agent.getEmptyResult(),
+ devin/1751831368-production-fixes
+        data: emptyData,
+
+        data: undefined as any,
+ main
         error: error instanceof Error ? error.message : 'Unknown error',
         executionTime: 0,
         usedFallback: false,
         confidence: 0,
       };
-      this.executionResults.set(agentType, errorResult);
+      this.executionResults.set(agentType, errorResult as any);
       this.agentStatuses.set(agentType, agent.getStatus());
       throw error;
     }
@@ -186,12 +256,29 @@ export class AnalysisOrchestrator {
   /**
    * Get execution results for all agents
    */
-  getExecutionResults(): Record<AgentType, AgentResult<any> | undefined> {
-    const results: Partial<Record<AgentType, AgentResult<any>>> = {};
+ devin/1751831368-production-fixes
+  getExecutionResults(): Record<AgentType, AgentResult<AgentOutput> | undefined> {
+    const results: Partial<Record<AgentType, AgentResult<AgentOutput>>> = {};
     this.executionResults.forEach((result, type) => {
       results[type] = result;
     });
-    return results as Record<AgentType, AgentResult<any> | undefined>;
+    return results as Record<AgentType, AgentResult<AgentOutput> | undefined>;
+
+  getExecutionResults(): Record<
+    AgentType,
+    AgentResult<DiffSegmentationOutput | ReviewerAlignmentOutput> | undefined
+  > {
+    const results: Partial<
+      Record<AgentType, AgentResult<DiffSegmentationOutput | ReviewerAlignmentOutput>>
+    > = {};
+    this.executionResults.forEach((result, type) => {
+      results[type] = result;
+    });
+    return results as Record<
+      AgentType,
+      AgentResult<DiffSegmentationOutput | ReviewerAlignmentOutput> | undefined
+    >;
+ main
   }
 
   /**

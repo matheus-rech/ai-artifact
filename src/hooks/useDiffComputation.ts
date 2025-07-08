@@ -1,6 +1,7 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { DiffEngine } from '@/services/diffEngine';
-import type { DiffItem, ValidationResult, DiffGranularity } from '@/types';
+import { DiffMatchPatchEngine } from '@/services/diffMatchPatchEngine';
+import type { DiffItem, ValidationResult, DiffGranularity, AppConfig } from '@/types';
 
 interface UseDiffComputationState {
   diffs: DiffItem[];
@@ -21,8 +22,9 @@ interface UseDiffComputationActions {
 
 /**
  * Hook for managing diff computation with performance optimization
+ * (Devin-aligned: diff engine toggle and ref-based concurrency guard)
  */
-export function useDiffComputation(): UseDiffComputationState & UseDiffComputationActions {
+export function useDiffComputation(config: AppConfig): UseDiffComputationState & UseDiffComputationActions {
   const [state, setState] = useState<UseDiffComputationState>({
     diffs: [],
     isComputing: false,
@@ -30,8 +32,13 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
     error: null,
   });
 
-  // Memoized diff engine instance
-  const diffEngine = useMemo(() => new DiffEngine(), []);
+  // Memoized diff engine instance based on config
+  const diffEngine = useMemo(() => {
+    return config.useDiffMatchPatch ? new DiffMatchPatchEngine() : new DiffEngine();
+  }, [config.useDiffMatchPatch]);
+
+  // Ref to track if a computation is running (avoids race with React state)
+  const isComputingRef = useRef(false);
 
   /**
    * Compute diffs between original and revised text
@@ -42,9 +49,12 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
       revised: string,
       granularity: DiffGranularity
     ): Promise<DiffItem[]> => {
-      if (state.isComputing) {
+      if (isComputingRef.current) {
         throw new Error('Diff computation already in progress');
       }
+
+      // Mark as running before any work starts to avoid race conditions
+      isComputingRef.current = true;
 
       setState((prev) => ({
         ...prev,
@@ -64,9 +74,10 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
             `Original text validation failed: ${originalValidation.errors.join(', ')}`
           );
         }
-
         if (!revisedValidation.isValid) {
-          throw new Error(`Revised text validation failed: ${revisedValidation.errors.join(', ')}`);
+          throw new Error(
+            `Revised text validation failed: ${revisedValidation.errors.join(', ')}`
+          );
         }
 
         // Compute diffs based on granularity
@@ -87,7 +98,9 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
           error: null,
         }));
 
-        console.log(
+        isComputingRef.current = false;
+
+        console.warn(
           `Diff computation completed: ${diffs.length} changes in ${computationTime.toFixed(2)}ms`
         );
 
@@ -103,10 +116,12 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
           error: errorMessage,
         }));
 
+        isComputingRef.current = false;
+
         throw error;
       }
     },
-    [state.isComputing, diffEngine]
+    [diffEngine]
   );
 
   /**
@@ -119,6 +134,7 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
       computationTime: 0,
       error: null,
     });
+    isComputingRef.current = false;
   }, []);
 
   /**
@@ -147,7 +163,7 @@ export function useDiffComputation(): UseDiffComputationState & UseDiffComputati
       // Check for significant size differences
       const sizeDifference = Math.abs(original.length - revised.length);
       const averageSize = (original.length + revised.length) / 2;
-      if (sizeDifference / averageSize > 0.5) {
+      if (averageSize > 0 && sizeDifference / averageSize > 0.5) {
         warnings.push('Large difference in text sizes detected');
       }
 

@@ -12,6 +12,18 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
+import './globals.css';
+
+// Use system fonts as fallback to avoid network issues during build
+const geistSans = {
+  variable: '--font-geist-sans',
+};
+
+const geistMono = {
+  variable: '--font-geist-mono',
+};
+ main
+
 export const metadata: Metadata = {
   title: 'Manuscript Diff Analyzer',
   description:

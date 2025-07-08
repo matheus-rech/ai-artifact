@@ -17,8 +17,9 @@ import { FileUploadArea } from './FileUploadArea';
 import { DiffViewer } from './DiffViewer';
 import { AnalysisPanel } from './AnalysisPanel';
 import { AgentStatusIndicator } from './AgentStatusIndicator';
+import { AdvancedSettings } from './AdvancedSettings';
 import { ErrorBoundary } from '../common/ErrorBoundary';
-import type { AnalysisTab, DiffGranularity, AppConfig } from '@/types';
+import type { AnalysisTab, DiffGranularity, AppConfig, AgentMode } from '@/types';
 import { cn } from '@/utils';
 
 const ManuscriptAnalyzer: React.FC = () => {
@@ -27,16 +28,28 @@ const ManuscriptAnalyzer: React.FC = () => {
   const [diffGranularity, setDiffGranularity] = useState<DiffGranularity>('sentence');
   const [config, setConfig] = useState<AppConfig>({
     useClaudeAPI: process.env['NEXT_PUBLIC_USE_CLAUDE_API'] === 'true',
-    agentMode: (process.env['NEXT_PUBLIC_AGENT_MODE'] as any) || 'heuristic',
+    agentMode: (process.env['NEXT_PUBLIC_AGENT_MODE'] as AgentMode) || 'heuristic',
     apiTimeout: parseInt(process.env['NEXT_PUBLIC_API_TIMEOUT'] || '30000', 10),
     maxRetries: parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10),
     maxTextLength: 1000000,
     minDiffLength: 3,
+ devin/1751831368-production-fixes
+
+ devin/1751849069-add-diff-engine-toggle
+    useDiffMatchPatch: false
+
+
+    useDiffMatchPatch: false
+
+    useDiffMatchPatch: true
+ main
+ main
+ main
   });
 
   // Custom hooks
   const validation = useManuscriptValidation();
-  const diffComputation = useDiffComputation();
+  const diffComputation = useDiffComputation(config);
   const multiAgentAnalysis = useMultiAgentAnalysis();
 
   /**
@@ -96,6 +109,13 @@ const ManuscriptAnalyzer: React.FC = () => {
       console.error('Analysis failed:', error);
     }
   }, [validation, diffComputation, multiAgentAnalysis, diffGranularity]);
+
+  /**
+   * Handle run analysis button click
+   */
+  const handleRunAnalysisClick = (): void => {
+    void runAnalysis();
+  };
 
   /**
    * Reset all analysis state
@@ -175,6 +195,8 @@ const ManuscriptAnalyzer: React.FC = () => {
                     <option value="sentence">Sentence-level</option>
                   </select>
                 </div>
+
+                <AdvancedSettings config={config} updateConfig={updateConfig} />
 
                 {/* Analysis Metrics */}
                 {multiAgentAnalysis.analysisMetrics.diffCount > 0 && (
@@ -306,9 +328,13 @@ const ManuscriptAnalyzer: React.FC = () => {
                 )}
               </div>
 
+              <div className="bg-white rounded-lg shadow p-6 border-t-4 border-indigo-500">
+                <AdvancedSettings config={config} onConfigChange={updateConfig} />
+              </div>
+
               <div className="flex justify-center">
                 <button
-                  onClick={runAnalysis}
+                  onClick={handleRunAnalysisClick}
                   disabled={!isAnalysisReady || isAnalyzing}
                   className={cn(
                     'px-8 py-3 rounded-lg font-medium flex items-center space-x-2',

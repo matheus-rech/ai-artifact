@@ -1,3 +1,15 @@
+interface ProcessEnv {
+  ANTHROPIC_API_KEY?: string;
+  NEXT_PUBLIC_ALLOW_BROWSER?: string;
+  NEXT_PUBLIC_MAX_RETRIES?: string;
+  NEXT_PUBLIC_API_TIMEOUT?: string;
+}
+
+// Ensure process is available in browser environments
+declare const process: {
+  env: ProcessEnv;
+};
+
 import Anthropic from '@anthropic-ai/sdk';
 import type {
   DiffItem,
@@ -9,10 +21,37 @@ import type {
 } from '@/types';
 import { generateId } from '@/utils';
 
+interface ClaudeAnalysisResponse {
+  diffId: string;
+  section: string;
+  priority: string;
+  assessment: string;
+  comment: string;
+  reviewerPoint: string;
+  confidence: number;
+}
+
+interface ClaudeReviewerResponse extends ClaudeAnalysisResponse {
+  alignmentScore: number;
+}
+
+interface WindowClaude {
+  complete: (prompt: string) => Promise<string>;
+}
+
+declare global {
+  interface Window {
+    claude?: WindowClaude;
+  }
+}
+
 /**
  * Production-ready Claude API service with comprehensive error handling
  */
 export class ClaudeAPIService {
+  private static readonly DEFAULT_MAX_RETRIES = 3;
+  private static readonly DEFAULT_API_TIMEOUT = 30_000;
+
   private anthropic: Anthropic | null = null;
   private fallbackToWindowClaude = false;
 
@@ -22,13 +61,13 @@ export class ClaudeAPIService {
 
   private initializeAPI(): void {
     const apiKey = process.env['ANTHROPIC_API_KEY'];
+    const isBrowser = typeof window !== 'undefined';
 
-    if (apiKey) {
-      this.anthropic = new Anthropic({
-        apiKey,
-        dangerouslyAllowBrowser: process.env['NEXT_PUBLIC_ALLOW_BROWSER'] === 'true', // Controlled via environment variable
-      });
-    } else if (typeof window !== 'undefined' && 'claude' in window) {
+    if (apiKey && !isBrowser) {
+      // Server-side execution – safe to create the SDK client.
+      this.anthropic = new Anthropic({ apiKey });
+    } else if (isBrowser && typeof window !== 'undefined' && window.claude) {
+      // Client-side fallback (e.g. window.claude injected for demos).
       this.fallbackToWindowClaude = true;
     } else {
       console.warn('No Claude API configuration found. Falling back to heuristic analysis.');
@@ -39,44 +78,69 @@ export class ClaudeAPIService {
    * Send a request to Claude API with retry logic
    */
   private async sendRequest(request: ClaudeAPIRequest): Promise<string> {
-    const maxRetries = parseInt(process.env['NEXT_PUBLIC_MAX_RETRIES'] || '3', 10);
-    const timeout = parseInt(process.env['NEXT_PUBLIC_API_TIMEOUT'] || '30000', 10);
+    const envRetriesRaw = process.env['NEXT_PUBLIC_MAX_RETRIES'];
+    const envTimeoutRaw = process.env['NEXT_PUBLIC_API_TIMEOUT'];
+    const envRetries = Number(envRetriesRaw);
+    const envTimeout = Number(envTimeoutRaw);
+
+    let maxRetries: number;
+    if (envRetriesRaw !== undefined && (!Number.isFinite(envRetries) || envRetries <= 0)) {
+      console.warn(
+        `[claudeApiService] Invalid NEXT_PUBLIC_MAX_RETRIES value "${envRetriesRaw}" – using default ${ClaudeAPIService.DEFAULT_MAX_RETRIES}`
+      );
+      maxRetries = ClaudeAPIService.DEFAULT_MAX_RETRIES;
+    } else {
+      maxRetries =
+        Number.isFinite(envRetries) && envRetries > 0
+          ? envRetries
+          : ClaudeAPIService.DEFAULT_MAX_RETRIES;
+    }
+
+    let timeout: number;
+    if (envTimeoutRaw !== undefined && (!Number.isFinite(envTimeout) || envTimeout <= 0)) {
+      console.warn(
+        `[claudeApiService] Invalid NEXT_PUBLIC_API_TIMEOUT value "${envTimeoutRaw}" – using default ${ClaudeAPIService.DEFAULT_API_TIMEOUT}`
+      );
+      timeout = ClaudeAPIService.DEFAULT_API_TIMEOUT;
+    } else {
+      timeout =
+        Number.isFinite(envTimeout) && envTimeout > 0
+          ? envTimeout
+          : ClaudeAPIService.DEFAULT_API_TIMEOUT;
+    }
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        if (this.anthropic) {
-          // Use Anthropic SDK
+        if (this.anthropic && typeof window === 'undefined') {
+          // Use Anthropic SDK on the server
+          // Note: The actual SDK call should be implemented here if you want to call Anthropic directly server-side.
+          throw new Error('Direct Anthropic SDK calls not implemented in this method. Use a backend endpoint instead.');
+        } else if (this.fallbackToWindowClaude && typeof window !== 'undefined' && window.claude) {
+          // Use window.claude in the browser (for demos)
           const response = await Promise.race([
-            this.anthropic.messages.create({
-              model: 'claude-3-sonnet-20240229',
-              max_tokens: request.maxTokens || 4000,
-              temperature: request.temperature || 0.3,
-              messages: [
-                {
-                  role: 'user',
-                  content: request.prompt,
-                },
-              ],
-            }),
+            window.claude.complete(request.prompt),
             new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error('Request timeout')), timeout)
             ),
           ]);
-
-          if (response.content[0]?.type === 'text') {
-            return response.content[0].text;
-          }
-          throw new Error('Invalid response format');
-        } else if (this.fallbackToWindowClaude) {
-          // Use window.claude for artifacts
-          const response = await Promise.race([
-            (window as any).claude.complete(request.prompt),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Request timeout')), timeout)
-            ),
-          ]);
-
           return response;
+        } else if (typeof window !== 'undefined') {
+          // In browser, call the backend API endpoint
+          const response = await fetch('/api/claude', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(request),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`API error: ${errorData.error || response.statusText}`);
+          }
+
+          const data = await response.json();
+          return data.content;
         } else {
           throw new Error('Claude API not available');
         }
@@ -85,7 +149,9 @@ export class ClaudeAPIService {
 
         if (attempt === maxRetries) {
           throw new Error(
-            `Claude API failed after ${maxRetries} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`
+            `Claude API failed after ${maxRetries} attempts: ${
+              error instanceof Error ? error.message : 'Unknown error'
+            }`
           );
         }
 
@@ -157,30 +223,29 @@ CRITICAL: Return ONLY the JSON array. No markdown, no explanations, no additiona
       const response = await this.sendRequest({ prompt });
       const analysisTime = Date.now() - startTime;
 
-      console.log(`Claude API analysis completed in ${analysisTime}ms`);
+      console.warn(`Claude API analysis completed in ${analysisTime}ms`);
 
       // Robust JSON parsing with validation
-      let analyses: any[];
+      let analyses: ClaudeAnalysisResponse[];
       try {
         const cleanedResponse = response
           .trim()
           .replace(/^```json\s*/, '')
           .replace(/\s*```$/, '');
-        analyses = JSON.parse(cleanedResponse);
+        const parsed = JSON.parse(cleanedResponse) as unknown;
+        if (!Array.isArray(parsed)) {
+          throw new Error('Expected array response from Claude API');
+        }
+        analyses = parsed as ClaudeAnalysisResponse[];
       } catch (parseError) {
         console.error('JSON parsing failed:', parseError);
-        console.log('Raw response:', response);
+        console.error('Raw response:', response);
         throw new Error('Invalid JSON response from Claude API');
-      }
-
-      if (!Array.isArray(analyses)) {
-        throw new Error('Expected array response from Claude API');
       }
 
       // Validate and enhance each analysis
       return analyses.map((analysis, index) => {
         const diffItem = diffs.find((d) => d.id === analysis.diffId) || diffs[index];
-
         return {
           analysisId: generateId('claude-seg'),
           diffId: analysis.diffId || diffItem?.id || `unknown-${index}`,
@@ -267,29 +332,28 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
       const response = await this.sendRequest({ prompt });
       const analysisTime = Date.now() - startTime;
 
-      console.log(`Claude reviewer alignment analysis completed in ${analysisTime}ms`);
+      console.warn(`Claude reviewer alignment analysis completed in ${analysisTime}ms`);
 
-      let analyses: any[];
+      let analyses: ClaudeReviewerResponse[];
       try {
         const cleanedResponse = response
           .trim()
           .replace(/^```json\s*/, '')
           .replace(/\s*```$/, '');
-        analyses = JSON.parse(cleanedResponse);
+        const parsed = JSON.parse(cleanedResponse) as unknown;
+        if (!Array.isArray(parsed)) {
+          throw new Error('Expected array response from Claude API');
+        }
+        analyses = parsed as ClaudeReviewerResponse[];
       } catch (parseError) {
         console.error('JSON parsing failed for reviewer alignment:', parseError);
         throw new Error('Invalid JSON response from Claude API');
-      }
-
-      if (!Array.isArray(analyses)) {
-        throw new Error('Expected array response from Claude API');
       }
 
       return analyses
         .filter((analysis) => analysis.alignmentScore > 25) // Filter low-relevance items
         .map((analysis, index) => {
           const diffItem = diffs.find((d) => d.id === analysis.diffId);
-
           return {
             analysisId: generateId('claude-rev'),
             diffId: analysis.diffId || `rev-${index}`,
@@ -348,7 +412,10 @@ CRITICAL: Return ONLY the JSON array. Include only changes with meaningful align
    * Check if Claude API is available
    */
   isAvailable(): boolean {
-    return this.anthropic !== null || this.fallbackToWindowClaude;
+    return (
+      this.anthropic !== null ||
+      (this.fallbackToWindowClaude && typeof window !== 'undefined' && Boolean(window.claude))
+    );
   }
 
   /**
