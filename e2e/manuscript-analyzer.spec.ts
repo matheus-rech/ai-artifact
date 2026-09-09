@@ -267,9 +267,7 @@ test.describe('Manuscript Diff Analyzer', () => {
     });
     await expect(diffEngineCheckbox).toBeVisible();
 
-    await expect(diffEngineCheckbox).not.toBeChecked();
-
-    await diffEngineCheckbox.click();
+    // The app ships with the diff-match-patch engine selected
     await expect(diffEngineCheckbox).toBeChecked();
 
     await diffEngineCheckbox.click();
@@ -277,13 +275,16 @@ test.describe('Manuscript Diff Analyzer', () => {
 
     await diffEngineCheckbox.click();
     await expect(diffEngineCheckbox).toBeChecked();
+
+    await diffEngineCheckbox.click();
+    await expect(diffEngineCheckbox).not.toBeChecked();
 
     // Navigate to another tab and back
     const nav = page.getByRole('navigation');
     await nav.getByRole('button', { name: 'Multi-Agent Analysis' }).click();
     await nav.getByRole('button', { name: 'Upload Documents' }).click();
 
-    await expect(diffEngineCheckbox).toBeChecked();
+    await expect(diffEngineCheckbox).not.toBeChecked();
   });
 
   test('should compare both diff engines with same input', async ({ page }) => {
@@ -357,13 +358,14 @@ test.describe('Manuscript Diff Analyzer', () => {
     });
     const analysisButton = page.getByRole('button', { name: /Run Multi-Agent Analysis/i });
 
+    // Changing granularity leaves the engine choice alone
     await page.getByRole('combobox').selectOption('word');
-    await expect(diffEngineCheckbox).not.toBeChecked();
+    await expect(diffEngineCheckbox).toBeChecked();
     await expect(analysisButton).toBeEnabled();
 
     await page.getByRole('combobox').selectOption('sentence');
     await diffEngineCheckbox.click();
-    await expect(diffEngineCheckbox).toBeChecked();
+    await expect(diffEngineCheckbox).not.toBeChecked();
     await expect(analysisButton).toBeEnabled();
 
     await analysisButton.click();
