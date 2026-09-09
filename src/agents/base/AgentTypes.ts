@@ -77,6 +77,9 @@ export type AgentType =
   | 'section-inference'
   | 'priority-assessment';
 
+// Where an agent is in its run, as tracked by the orchestrator
+export type AgentExecutionStatus = 'idle' | 'executing' | 'completed' | 'error';
+
 // Default configurations for each agent type
 export const DEFAULT_AGENT_CONFIGS: Record<AgentType, AgentConfig> = {
   'diff-segmentation': {
