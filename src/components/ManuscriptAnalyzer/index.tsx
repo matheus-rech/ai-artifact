@@ -151,7 +151,8 @@ const ManuscriptAnalyzer: React.FC = () => {
         {/* Header */}
         <header className="bg-white shadow-sm border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-4">
+            {/* The title and the controls wrap onto separate rows on a phone; without that the control group overflows the viewport and Chrome zooms the whole page out */}
+            <div className="flex flex-wrap justify-between items-center gap-4 py-4">
               <div className="flex items-center space-x-3">
                 <FileText className="h-8 w-8 text-blue-600" />
                 <div>
@@ -162,7 +163,7 @@ const ManuscriptAnalyzer: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-4">
+              <div className="flex flex-wrap items-center gap-4">
                 {/* Configuration Controls */}
                 <div className="flex items-center space-x-2">
                   <Settings className="h-4 w-4 text-gray-400" />
@@ -188,8 +189,6 @@ const ManuscriptAnalyzer: React.FC = () => {
                     <option value="sentence">Sentence-level</option>
                   </select>
                 </div>
-
-                <AdvancedSettings config={config} updateConfig={updateConfig} />
 
                 {/* Analysis Metrics */}
                 {multiAgentAnalysis.analysisMetrics.diffCount > 0 && (
