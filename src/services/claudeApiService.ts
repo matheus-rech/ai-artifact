@@ -272,7 +272,7 @@ Analyze alignment and respond with a JSON array where each item has:
         temperature: 0,
       });
 
-      const analyses = this.parseAlignmentResponse(response, diffs);
+      const analyses = this.parseAlignmentResponse(response);
       return analyses;
     } catch (error) {
       console.error('Reviewer alignment analysis failed:', error);
@@ -281,48 +281,9 @@ Analyze alignment and respond with a JSON array where each item has:
   }
 
   /**
-   * Parse segmentation analysis response
-   */
-  private parseAnalysisResponse(response: string, diffs: DiffItem[]): AnalysisItem[] {
-    try {
-      // Extract JSON from response
-      const jsonMatch = response.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        throw new Error('No JSON array found in response');
-      }
-
-      const parsed = JSON.parse(jsonMatch[0]) as Array<{
-        diffId: string;
-        section: string;
-        priority: string;
-        assessment: string;
-        comment: string;
-        confidence: number;
-      }>;
-
-      return parsed.map((item) => ({
-        analysisId: `claude-seg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        diffId: item.diffId,
-        section: item.section,
-        priority: item.priority as 'high' | 'medium' | 'low',
-        assessment: item.assessment as 'positive' | 'negative' | 'neutral',
-        comment: item.comment,
-        confidence: item.confidence || 0.8,
-        changeType: 'unknown',
-        reviewerPoint: item.comment,
-        relatedText: '',
-        timestamp: new Date().toISOString(),
-      }));
-    } catch (error) {
-      console.error('Failed to parse Claude response:', error);
-      throw new Error('Failed to parse analysis response');
-    }
-  }
-
-  /**
    * Parse alignment analysis response
    */
-  private parseAlignmentResponse(response: string, diffs: DiffItem[]): AnalysisItem[] {
+  private parseAlignmentResponse(response: string): AnalysisItem[] {
     try {
       // Extract JSON from response
       const jsonMatch = response.match(/\[[\s\S]*\]/);
