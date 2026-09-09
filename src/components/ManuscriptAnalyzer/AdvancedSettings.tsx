@@ -3,21 +3,10 @@ import type { AppConfig } from '../../types';
 
 interface AdvancedSettingsProps {
   config: AppConfig;
-  onConfigChange?: (updates: Partial<AppConfig>) => void;
-  updateConfig?: (updates: Partial<AppConfig>) => void;
+  onConfigChange: (updates: Partial<AppConfig>) => void;
 }
 
-export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
-  config,
-  onConfigChange,
-  updateConfig,
-}) => {
-  const handleConfigChange = onConfigChange || updateConfig;
-  
-  if (!handleConfigChange) {
-    throw new Error('AdvancedSettings requires either onConfigChange or updateConfig prop');
-  }
-
+export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ config, onConfigChange }) => {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-800">Advanced Settings</h3>
@@ -26,7 +15,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
           <input
             type="checkbox"
             checked={config.useDiffMatchPatch}
-            onChange={(e) => handleConfigChange({ useDiffMatchPatch: e.target.checked })}
+            onChange={(e) => onConfigChange({ useDiffMatchPatch: e.target.checked })}
             className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
           />
           <div className="flex flex-col">
