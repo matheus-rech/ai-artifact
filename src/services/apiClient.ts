@@ -17,6 +17,11 @@ export interface AnalyzeResponse {
   error?: string;
 }
 
+function averageConfidence(analyses: AnalysisItem[]): number {
+  if (analyses.length === 0) return 0;
+  return analyses.reduce((sum, analysis) => sum + analysis.confidence, 0) / analyses.length;
+}
+
 /**
  * Client-side API service for secure communication with backend
  */
@@ -133,17 +138,24 @@ export class APIClient {
    * Wrapper methods for compatibility
    */
   async analyzeSegmentation(diffs: DiffItem[]): Promise<AgentResult<{ analyses: AnalysisItem[] }>> {
+    const startTime = Date.now();
     try {
       const analyses = await this.analyzeDiffSegmentation(diffs);
       return {
         success: true,
         data: { analyses },
+        executionTime: Date.now() - startTime,
+        usedFallback: false,
+        confidence: averageConfidence(analyses),
       };
     } catch (error) {
       return {
         success: false,
         data: { analyses: [] },
         error: error instanceof Error ? error.message : 'Unknown error occurred',
+        executionTime: Date.now() - startTime,
+        usedFallback: false,
+        confidence: 0,
       };
     }
   }
@@ -152,17 +164,24 @@ export class APIClient {
     diffs: DiffItem[],
     reviewerRequests: string
   ): Promise<AgentResult<{ analyses: AnalysisItem[] }>> {
+    const startTime = Date.now();
     try {
       const analyses = await this.analyzeReviewerAlignment(diffs, reviewerRequests);
       return {
         success: true,
         data: { analyses },
+        executionTime: Date.now() - startTime,
+        usedFallback: false,
+        confidence: averageConfidence(analyses),
       };
     } catch (error) {
       return {
         success: false,
         data: { analyses: [] },
         error: error instanceof Error ? error.message : 'Unknown error occurred',
+        executionTime: Date.now() - startTime,
+        usedFallback: false,
+        confidence: 0,
       };
     }
   }
