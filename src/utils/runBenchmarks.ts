@@ -71,7 +71,7 @@ function generateRecommendation(results: BenchmarkResult[]): string {
 
   let recommendation = '';
 
-  if (Math.abs(lcsAvgTime - dmpAvgTime) < 50) {
+  if (Math.abs(lcsAvgTime - dmpAvgTime) < PERFORMANCE_THRESHOLD_MS) {
     if (dmpAvgAccuracy > lcsAvgAccuracy + 0.1) {
       recommendation = 'RECOMMENDATION: Use diff-match-patch engine as default. Similar performance with better accuracy.';
     } else if (lcsAvgAccuracy > dmpAvgAccuracy + 0.1) {
@@ -79,12 +79,12 @@ function generateRecommendation(results: BenchmarkResult[]): string {
     } else {
       recommendation = 'RECOMMENDATION: Use diff-match-patch engine as default. Similar performance and accuracy, but DMP has better semantic cleanup.';
     }
-  } else if (dmpAvgTime < lcsAvgTime * 0.8) {
+  } else if (dmpAvgTime < lcsAvgTime * PERFORMANCE_RATIO_THRESHOLD) {
     recommendation = 'RECOMMENDATION: Use diff-match-patch engine as default. Significantly better performance.';
-  } else if (lcsAvgTime < dmpAvgTime * 0.8) {
+  } else if (lcsAvgTime < dmpAvgTime * PERFORMANCE_RATIO_THRESHOLD) {
     recommendation = 'RECOMMENDATION: Use LCS engine as default. Significantly better performance.';
   } else {
-    if (dmpAvgAccuracy > lcsAvgAccuracy + 0.05) {
+    if (dmpAvgAccuracy > lcsAvgAccuracy + ACCURACY_DIFFERENCE_THRESHOLD) {
       recommendation = 'RECOMMENDATION: Use diff-match-patch engine as default. Better accuracy outweighs moderate performance difference.';
     } else {
       recommendation = 'RECOMMENDATION: Use LCS engine as default. Better performance with acceptable accuracy.';
@@ -115,7 +115,7 @@ export async function runBenchmarksInConsole(): Promise<void> {
 
 import type { DiffItem } from '../types';
 
-interface BenchmarkResult {
+interface AlgorithmBenchmarkResult {
   algorithm: string;
   duration: number;
   accuracy: number;
@@ -126,7 +126,7 @@ interface BenchmarkSuite {
   name: string;
   originalText: string;
   revisedText: string;
-  results: BenchmarkResult[];
+  results: AlgorithmBenchmarkResult[];
 }
 
 /**
@@ -174,18 +174,13 @@ export class BenchmarkRunner {
       results.push(suite);
     }
 
-    // Performance thresholds and analysis constants
-    // const PERFORMANCE_THRESHOLD_MS = 50;
-    // const PERFORMANCE_RATIO_THRESHOLD = 0.8;
-    // const ACCURACY_DIFFERENCE_THRESHOLD = 0.05;
-
     return results;
   }
 
   /**
    * Benchmark word-level diff generation
    */
-  private async benchmarkWordDiffs(original: string, revised: string): Promise<BenchmarkResult> {
+  private async benchmarkWordDiffs(original: string, revised: string): Promise<AlgorithmBenchmarkResult> {
     const startTime = performance.now();
     
     const diffs = this.diffEngine.generateWordDiffs(original, revised);
@@ -204,7 +199,7 @@ export class BenchmarkRunner {
   /**
    * Benchmark sentence-level diff generation
    */
-  private async benchmarkSentenceDiffs(original: string, revised: string): Promise<BenchmarkResult> {
+  private async benchmarkSentenceDiffs(original: string, revised: string): Promise<AlgorithmBenchmarkResult> {
     const startTime = performance.now();
     
     const diffs = this.diffEngine.generateSentenceDiffs(original, revised);
