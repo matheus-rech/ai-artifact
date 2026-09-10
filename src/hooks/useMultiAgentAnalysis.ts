@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { AnalysisOrchestrator } from '@/agents/AnalysisOrchestrator';
-import type { DiffItem, OverallAnalysis, AgentStatus, AgentResult, AnalysisMetrics } from '@/types';
+import type { DiffItem, OverallAnalysis, AgentResult, AnalysisMetrics } from '@/types';
 import type {
+  AgentExecutionStatus,
   AgentType,
   DiffSegmentationOutput,
   ReviewerAlignmentOutput,
@@ -12,7 +13,7 @@ interface UseMultiAgentAnalysisState {
   segmentationResult: AgentResult<DiffSegmentationOutput> | null;
   alignmentResult: AgentResult<ReviewerAlignmentOutput> | null;
   overallAnalysis: OverallAnalysis | null;
-  agentStatuses: Record<AgentType, AgentStatus>;
+  agentStatuses: Record<AgentType, AgentExecutionStatus>;
   analysisMetrics: AnalysisMetrics;
   error: string | null;
 }
@@ -20,7 +21,7 @@ interface UseMultiAgentAnalysisState {
 interface UseMultiAgentAnalysisActions {
   runAnalysis: (diffs: DiffItem[], reviewerRequests?: string) => Promise<void>;
   resetAnalysis: () => void;
-  getAgentStatus: (agentType: AgentType) => AgentStatus | undefined;
+  getAgentStatus: (agentType: AgentType) => AgentExecutionStatus;
   isAnyAgentRunning: () => boolean;
 }
 
@@ -35,7 +36,7 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
     segmentationResult: null,
     alignmentResult: null,
     overallAnalysis: null,
-    agentStatuses: {} as Record<AgentType, AgentStatus>,
+    agentStatuses: {} as Record<AgentType, AgentExecutionStatus>,
     analysisMetrics: {
       totalTime: 0,
       diffCount: 0,
@@ -94,7 +95,7 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
           segmentationResult: result.segmentationResult,
           alignmentResult: result.alignmentResult,
           overallAnalysis: result.overallAnalysis,
-          agentStatuses: orchestrator.getAllStatuses() as unknown as Record<AgentType, AgentStatus>,
+          agentStatuses: orchestrator.getAllStatuses(),
           analysisMetrics,
           error: null,
         }));
@@ -124,7 +125,7 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
       segmentationResult: null,
       alignmentResult: null,
       overallAnalysis: null,
-      agentStatuses: orchestrator.getAllStatuses() as unknown as Record<AgentType, AgentStatus>,
+      agentStatuses: orchestrator.getAllStatuses(),
       analysisMetrics: {
         totalTime: 0,
         diffCount: 0,
@@ -139,9 +140,9 @@ export function useMultiAgentAnalysis(): UseMultiAgentAnalysisState & UseMultiAg
    * Get status of specific agent
    */
   const getAgentStatus = useCallback(
-    (agentType: AgentType): AgentStatus | undefined => {
+    (agentType: AgentType): AgentExecutionStatus => {
       const orchestrator = getOrchestrator();
-      return orchestrator.getAgentStatus(agentType) as unknown as AgentStatus;
+      return orchestrator.getAgentStatus(agentType);
     },
     [getOrchestrator]
   );

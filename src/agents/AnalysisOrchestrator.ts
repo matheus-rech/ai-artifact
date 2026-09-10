@@ -3,13 +3,14 @@ import { ReviewerAlignmentAgent } from './ReviewerAlignmentAgent';
 import type { DiffItem, OverallAnalysis, AgentConfig, AgentResult } from '@/types';
 import { DEFAULT_AGENT_CONFIGS } from './base/AgentTypes';
 import type {
+  AgentExecutionStatus,
   AgentType,
   DiffSegmentationInput,
   DiffSegmentationOutput,
   ReviewerAlignmentInput,
   ReviewerAlignmentOutput,
 } from './base/AgentTypes';
-import { BaseAgent } from './base/BaseAgent';
+import type { BaseAgent } from './base/BaseAgent';
 
 type AgentInput = DiffSegmentationInput | ReviewerAlignmentInput;
 type AgentOutput = DiffSegmentationOutput | ReviewerAlignmentOutput;
@@ -19,7 +20,7 @@ type AgentOutput = DiffSegmentationOutput | ReviewerAlignmentOutput;
  */
 export class AnalysisOrchestrator {
   private agents: Map<AgentType, BaseAgent<AgentInput, AgentOutput>> = new Map();
-  private agentStatuses: Map<AgentType, AgentStatus> = new Map();
+  private agentStatuses: Map<AgentType, AgentExecutionStatus> = new Map();
   private executionResults: Map<AgentType, AgentResult<AgentOutput>> = new Map();
 
   constructor(configs?: Partial<Record<AgentType, AgentConfig>>) {
@@ -223,15 +224,15 @@ export class AnalysisOrchestrator {
   /**
    * Get the current status of an agent
    */
-  getAgentStatus(agentType: AgentType): 'idle' | 'executing' | 'completed' | 'error' {
+  getAgentStatus(agentType: AgentType): AgentExecutionStatus {
     return this.agentStatuses.get(agentType) || 'idle';
   }
 
   /**
    * Get all agent statuses
    */
-  getAllStatuses(): Record<AgentType, 'idle' | 'executing' | 'completed' | 'error'> {
-    return Object.fromEntries(this.agentStatuses) as Record<AgentType, 'idle' | 'executing' | 'completed' | 'error'>;
+  getAllStatuses(): Record<AgentType, AgentExecutionStatus> {
+    return Object.fromEntries(this.agentStatuses) as Record<AgentType, AgentExecutionStatus>;
   }
 
   /**

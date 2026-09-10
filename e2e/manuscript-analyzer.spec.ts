@@ -1,4 +1,16 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+// The route is prerendered, so a fill can land on a textarea before React hydrates and that first change is dropped, leaving the text on screen but nothing in state. Retry until the app itself reports the manuscripts loaded.
+async function pasteManuscripts(page: Page, ...texts: string[]): Promise<void> {
+  await expect(async () => {
+    for (const [index, text] of texts.entries()) {
+      await page.locator('textarea').nth(index).fill(text);
+    }
+    await expect(page.getByText('Document loaded successfully')).toHaveCount(texts.length, {
+      timeout: 2000,
+    });
+  }).toPass({ timeout: 20000 });
+}
 
 test.describe('Manuscript Diff Analyzer', () => {
   test.beforeEach(async ({ page }) => {
@@ -32,15 +44,10 @@ test.describe('Manuscript Diff Analyzer', () => {
     const revisedText =
       'This is the revised manuscript text. It contains several updated sentences that will be analyzed for changes.';
 
-    // Fill original manuscript
-    const originalTextarea = page.locator('textarea').nth(0);
-    await originalTextarea.fill(originalText);
-    await expect(originalTextarea).toHaveValue(originalText);
+    await pasteManuscripts(page, originalText, revisedText);
 
-    // Fill revised manuscript
-    const revisedTextarea = page.locator('textarea').nth(1);
-    await revisedTextarea.fill(revisedText);
-    await expect(revisedTextarea).toHaveValue(revisedText);
+    await expect(page.locator('textarea').nth(0)).toHaveValue(originalText);
+    await expect(page.locator('textarea').nth(1)).toHaveValue(revisedText);
 
     // Check character count displays (be more specific)
     await expect(page.getByText(/\d+ characters/).first()).toBeVisible();
@@ -62,9 +69,7 @@ test.describe('Manuscript Diff Analyzer', () => {
     // Initially disabled
     await expect(analysisButton).toBeDisabled();
 
-    // Fill both manuscripts
-    await page.locator('textarea').nth(0).fill('Original manuscript content');
-    await page.locator('textarea').nth(1).fill('Revised manuscript content');
+    await pasteManuscripts(page, 'Original manuscript content', 'Revised manuscript content');
 
     // Should now be enabled
     await expect(analysisButton).toBeEnabled();
@@ -96,9 +101,7 @@ test.describe('Manuscript Diff Analyzer', () => {
   });
 
   test('should show validation errors for invalid input', async ({ page }) => {
-    // Try with very short text
-    await page.locator('textarea').nth(0).fill('Too short');
-    await page.locator('textarea').nth(1).fill('Also short');
+    await pasteManuscripts(page, 'Too short', 'Also short');
 
     // Look for warning indicators (the app shows warnings, not errors)
     await expect(page.getByText(/Warnings/i).first()).toBeVisible();
@@ -160,8 +163,7 @@ test.describe('Manuscript Diff Analyzer', () => {
       'Please provide more details about the methodology and strengthen the conclusions with additional evidence.';
 
     // Fill in the manuscripts
-    await page.locator('textarea').nth(0).fill(originalText);
-    await page.locator('textarea').nth(1).fill(revisedText);
+    await pasteManuscripts(page, originalText, revisedText);
     await page.getByPlaceholder(/Paste reviewer revision requests here/i).fill(reviewerRequests);
 
     // Enable Claude AI for more comprehensive analysis (if available)
@@ -245,7 +247,7 @@ test.describe('Manuscript Diff Analyzer', () => {
     const testText = 'This is some test content that should persist.';
 
     // Enter text in original manuscript
-    await page.locator('textarea').nth(0).fill(testText);
+    await pasteManuscripts(page, testText);
 
     // Navigate to another tab
     const nav = page.getByRole('navigation');
@@ -267,9 +269,7 @@ test.describe('Manuscript Diff Analyzer', () => {
     });
     await expect(diffEngineCheckbox).toBeVisible();
 
-    await expect(diffEngineCheckbox).not.toBeChecked();
-
-    await diffEngineCheckbox.click();
+    // The app ships with the diff-match-patch engine selected
     await expect(diffEngineCheckbox).toBeChecked();
 
     await diffEngineCheckbox.click();
@@ -277,13 +277,16 @@ test.describe('Manuscript Diff Analyzer', () => {
 
     await diffEngineCheckbox.click();
     await expect(diffEngineCheckbox).toBeChecked();
+
+    await diffEngineCheckbox.click();
+    await expect(diffEngineCheckbox).not.toBeChecked();
 
     // Navigate to another tab and back
     const nav = page.getByRole('navigation');
     await nav.getByRole('button', { name: 'Multi-Agent Analysis' }).click();
     await nav.getByRole('button', { name: 'Upload Documents' }).click();
 
-    await expect(diffEngineCheckbox).toBeChecked();
+    await expect(diffEngineCheckbox).not.toBeChecked();
   });
 
   test('should compare both diff engines with same input', async ({ page }) => {
@@ -301,8 +304,7 @@ test.describe('Manuscript Diff Analyzer', () => {
     Experimental results demonstrate highly significant improvements in processing efficiency and accuracy.
     `;
 
-    await page.locator('textarea').nth(0).fill(originalText);
-    await page.locator('textarea').nth(1).fill(revisedText);
+    await pasteManuscripts(page, originalText, revisedText);
 
     const diffEngineCheckbox = page.getByRole('checkbox', {
       name: /Use Google Diff-Match-Patch Engine/i,
@@ -326,8 +328,7 @@ test.describe('Manuscript Diff Analyzer', () => {
 
     await page.locator('textarea').nth(0).clear();
     await page.locator('textarea').nth(1).clear();
-    await page.locator('textarea').nth(0).fill(originalText);
-    await page.locator('textarea').nth(1).fill(revisedText);
+    await pasteManuscripts(page, originalText, revisedText);
 
     await diffEngineCheckbox.click();
     await expect(diffEngineCheckbox).toBeChecked();
@@ -348,22 +349,21 @@ test.describe('Manuscript Diff Analyzer', () => {
     const shortOriginal = 'Original text for testing.';
     const shortRevised = 'Revised text for comprehensive testing.';
 
-    // Fill manuscripts
-    await page.locator('textarea').nth(0).fill(shortOriginal);
-    await page.locator('textarea').nth(1).fill(shortRevised);
+    await pasteManuscripts(page, shortOriginal, shortRevised);
 
     const diffEngineCheckbox = page.getByRole('checkbox', {
       name: /Use Google Diff-Match-Patch Engine/i,
     });
     const analysisButton = page.getByRole('button', { name: /Run Multi-Agent Analysis/i });
 
+    // Changing granularity leaves the engine choice alone
     await page.getByRole('combobox').selectOption('word');
-    await expect(diffEngineCheckbox).not.toBeChecked();
+    await expect(diffEngineCheckbox).toBeChecked();
     await expect(analysisButton).toBeEnabled();
 
     await page.getByRole('combobox').selectOption('sentence');
     await diffEngineCheckbox.click();
-    await expect(diffEngineCheckbox).toBeChecked();
+    await expect(diffEngineCheckbox).not.toBeChecked();
     await expect(analysisButton).toBeEnabled();
 
     await analysisButton.click();
